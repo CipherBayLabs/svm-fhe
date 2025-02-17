@@ -55,9 +55,7 @@ fn save_public_key(key: &CompactPublicKey) -> Result<(), String> {
     Ok(())
 }
 
-pub fn load_public_key() -> Result<PublicKey, String> {
-    let data = fs::read(PUBLIC_KEY_PATH)
-        .map_err(|e| format!("Failed to read public key file: {}", e))?;
-    bincode::deserialize(&data)
-        .map_err(|e| format!("Failed to deserialize public key: {}", e))
+pub fn load_public_key() -> Result<CompactPublicKey, String> {
+    let data = fs::read(PUBLIC_KEY_PATH).map_err(|e| e.to_string())?;
+    bincode::deserialize(&data).map_err(|e| e.to_string())
 }
