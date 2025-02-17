@@ -31,7 +31,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
 }
 
-
 fn save_client_key(key: &ClientKey) -> Result<(), String> {
     let buffer = bincode::serialize(key)
         .map_err(|e| format!("Failed to serialize client key: {}", e))?;
@@ -54,4 +53,11 @@ fn save_public_key(key: &CompactPublicKey) -> Result<(), String> {
     fs::write(PUBLIC_KEY_PATH, buffer)
         .map_err(|e| format!("Failed to save public key: {}", e))?;
     Ok(())
+}
+
+pub fn load_public_key() -> Result<PublicKey, String> {
+    let data = fs::read(PUBLIC_KEY_PATH)
+        .map_err(|e| format!("Failed to read public key file: {}", e))?;
+    bincode::deserialize(&data)
+        .map_err(|e| format!("Failed to deserialize public key: {}", e))
 }

@@ -3,6 +3,32 @@ use tfhe::{
     generate_keys, set_server_key, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint8, ServerKey
 };
 use std::io::Cursor;
+use axum::{
+    routing::{get, post}, Router, Json, extract::State,
+};
+use serde::{Deserialize, Serialize};
+use tower_http::cors::CorsLayer;
+use std::sync::Arc;
+use tokio_rusqlite::Connection;
+mod keys;
+
+async fn init_db(conn: &Connection) {
+    conn.call(|conn| {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS computations (
+                id INTEGER PRIMARY KEY,
+                ciphertext BLOB NOT NULL
+            )",
+            [],
+        )
+    }).await.expect("Failed to create table");
+}
+
+fn single_encryption(public_key: &CompactPublicKey, a: u8) {
+    let public_key = keys::load_public_key()?;
+    let compact_lista = CompactCiphertextList::builder(&public_key).push(a).build();
+    let expandeda = compact_lista.expand().unwrap();
+}
 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -36,3 +62,5 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert_eq!(output, 32u8);
     Ok(())  
 }
+
+
