@@ -29,7 +29,7 @@ fn single_encryption(public_key: &CompactPublicKey, a: u8) {
     let compact_lista = CompactCiphertextList::builder(&public_key).push(a).build();
     let expandeda = compact_lista.expand().unwrap();
 }
-
+ 
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
      let config = ConfigBuilder::default().use_custom_parameters(tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,).build();
