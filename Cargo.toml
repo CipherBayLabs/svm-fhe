@@ -2,6 +2,7 @@
 name = "poc"
 version = "0.1.0"
 edition = "2021"
+default-run = "poc"
 
 [dependencies]
 tfhe = { version = "0.11.1", features = ["boolean", "shortint", "integer"] }
