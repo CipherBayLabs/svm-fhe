@@ -44,45 +44,33 @@ fn requestDecryption(ct: U256) {
  
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create data directory before opening connection
+
     if let Some(parent) = Path::new(DB_PATH).parent() {
         fs::create_dir_all(parent)?;
     }
-
-    println!("Opening database connection...");
     let conn = Connection::open(DB_PATH).await?;
-    
-    println!("Initializing database...");
     init_db(&conn).await?;
 
-    // let config = ConfigBuilder::default().use_custom_parameters(tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,).build();
-    // let (client_key, _server_key) = generate_keys(config);
+    println!("Loading public key and creating test value...");
+    let public_key = keys::load_public_key()?;
+    let compact_list = CompactCiphertextList::builder(&public_key).push(25u8).build();
+    let _expanded = compact_list.expand().unwrap();
+    let value:FheUint8 = _expanded.get(0).unwrap().unwrap();
 
-    // let public_key = CompactPublicKey::new(&client_key);
-    // let compact_lista = CompactCiphertextList::builder(&public_key).push(25u8).build();
-    // let compact_listb = CompactCiphertextList::builder(&public_key).push(7u8).build();
-    // let expandeda = compact_lista.expand().unwrap();
-    // let expandedb = compact_listb.expand().unwrap();
-    // let a: FheUint8 = expandeda.get(0).unwrap().unwrap();
-    // let b: FheUint8 = expandedb.get(0).unwrap().unwrap();
+    println!("Inserting test value with key 1234...");
+    insert_computation(&conn, U256::from(123400), &value).await?;
 
-    // println!("Serializing...");
-    // let mut serialized_data: Vec<u8> = vec![];
-    // bincode::serialize_into(&mut serialized_data, &_server_key)?;
-    // bincode::serialize_into(&mut serialized_data, &a)?;
-    // bincode::serialize_into(&mut serialized_data, &b)?;
-    
-    // let mut serialized_data = Cursor::new(serialized_data);
-    // let server_key: ServerKey = bincode::deserialize_from(&mut serialized_data)?;
-    // let ct_1: FheUint8 = bincode::deserialize_from(&mut serialized_data)?;
-    // let ct_2: FheUint8 = bincode::deserialize_from(&mut serialized_data)?;
+    // Verify the data was written
+    println!("Verifying data was written...");
+    if let Some(_) = get_computation(&conn, U256::from(1234)).await? {
+        println!("✅ Data successfully written and retrieved!");
+    } else {
+        println!("❌ Data not found in database!");
+    }
 
-    // set_server_key(_server_key);
-    // let result = ct_1 + ct_2;
-    // let serialized_result = bincode::serialize(&result)?;
-    // let result: FheUint8 = bincode::deserialize(&serialized_result)?;
-    // let output: u8 = result.decrypt(&client_key);
-    // assert_eq!(output, 32u8);
+    // Add this to your main function after insert:
+    dump_database(&conn).await?;
+
     Ok(())  
 }
 
@@ -117,18 +105,41 @@ async fn insert_computation(
     key: U256, 
     ciphertext: &FheUint8
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Serialize the ciphertext
+    println!("Serializing ciphertext...");
     let serialized_ciphertext = bincode::serialize(ciphertext)?;
+    println!("Serialized ciphertext size: {} bytes", serialized_ciphertext.len());
     
-    // Convert U256 to bytes (fixed size array of 32 bytes)
+    println!("Converting U256 key to bytes...");
     let mut key_bytes = [0u8; 32];
     key.to_big_endian(&mut key_bytes);
+    println!("Key bytes: {:?}", key_bytes.to_vec());
     
-    conn.call(move |conn| {
-        conn.execute(
+    println!("Executing INSERT query...");
+    let result = conn.call(move |conn| {
+        // Start a transaction
+        let tx = conn.transaction()?;
+        
+        tx.execute(
             "INSERT OR REPLACE INTO computations (key, ciphertext) VALUES (?1, ?2)",
             rusqlite::params![key_bytes.to_vec(), serialized_ciphertext],
-        )
+        )?;
+        
+        // Commit the transaction
+        tx.commit()?;
+        Ok(1) // Return number of affected rows
+    }).await?;
+    
+    println!("Insert completed. Rows affected: {}", result);
+
+    // Verify the data immediately after insert
+    conn.call(move |conn| {
+        let count: i64 = conn.query_row(
+            "SELECT COUNT(*) FROM computations",
+            [],
+            |row| row.get(0),
+        )?;
+        println!("Total rows in database: {}", count);
+        Ok(())
     }).await?;
 
     Ok(())
@@ -177,5 +188,25 @@ async fn example_usage() -> Result<(), Box<dyn std::error::Error>> {
     //     println!("Retrieved ciphertext for key: {}", key);
     // }
 
+    Ok(())
+}
+
+async fn dump_database(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
+    println!("\nDumping database contents:");
+    conn.call(|conn| {
+        let mut stmt = conn.prepare("SELECT * FROM computations")?;
+        let rows = stmt.query_map([], |row| {
+            let key: Vec<u8> = row.get(0)?;
+            let cipher: Vec<u8> = row.get(1)?;
+            Ok((key, cipher))
+        })?;
+        
+        for row in rows {
+            if let Ok((key, cipher)) = row {
+                println!("Key length: {}, Cipher length: {}", key.len(), cipher.len());
+            }
+        }
+        Ok(())
+    }).await?;
     Ok(())
 }
