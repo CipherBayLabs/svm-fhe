@@ -1,10 +1,11 @@
 use tfhe::prelude::*;
 use tfhe::{
-    generate_keys, set_server_key, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint8, ServerKey
+    set_server_key, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint8, ServerKey
 };
 use std::io::Cursor;
 use axum::{
     routing::{get, post}, Router, Json, extract::State,
+    http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
@@ -15,27 +16,27 @@ use std::path::Path;
 use std::fs;
 mod keys;
 
-
 const DB_PATH: &str = "data/tfhe.db";
 
-async fn single_encryption(conn: &Connection, public_key: &CompactPublicKey, a: u8) -> Result<(), Box<dyn std::error::Error>> {
+
+async fn single_encryption(key: String, a: u8) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = Connection::open(DB_PATH).await?;
     let public_key = keys::load_public_key()?;
     let compact_list = CompactCiphertextList::builder(&public_key).push(a).build();
     let _expanded = compact_list.expand().unwrap();
     let value:FheUint8 = _expanded.get(0).unwrap().unwrap();
     let mut serialized_data: Vec<u8> = vec![];
     bincode::serialize_into(&mut serialized_data, &value)?;
-    println!("serialized_data: {:?}", serialized_data);
     let public_key = keys::load_public_key()?;
-    let key = string_to_u256("9999999999999999999999999999999999999")?;
-    let compact_list = CompactCiphertextList::builder(&public_key).push(26u8).build();
+    let key = string_to_u256(&key)?;
+    let compact_list = CompactCiphertextList::builder(&public_key).push(a).build();
     let _expanded = compact_list.expand().unwrap();
     let value:FheUint8 = _expanded.get(0).unwrap().unwrap();
     insert_computation(&conn, key, &value).await?;
     Ok(())
 }
 
-fn add(lhs: U256, rhs: U256) {
+fn add(lhs: U256) {
     // pull the ciphertexts from the db
     //initialize the server w the key
     // add the ciphertexts
@@ -65,6 +66,12 @@ struct ComputeRequest {
     value: u8,
 }
 
+#[derive(Deserialize)]
+struct EncryptRequest {
+    key: String,
+    value: u8,
+}
+
 #[derive(Serialize)]
 struct ComputeResponse {
     result: String,
@@ -83,31 +90,31 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let conn = Connection::open(DB_PATH).await?;
     init_db(&conn).await?;
+
     let cors = CorsLayer::permissive();
     let app = Router::new()
-        .route("/", get(hello)) 
+        .route("/", get(hello))
         .route("/compute", post(compute))
+        .route("/post", post(handle_post))
         .layer(cors)
         .with_state(conn);
+
     println!("Server running on http://localhost:3000");
     axum::serve(
         tokio::net::TcpListener::bind("127.0.0.1:3000").await?,
         app
     ).await?;
-    Ok(())  
+
+    Ok(())
 }
 
 
 async fn init_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
-    // Ensure data directory exists with proper permissions
     if let Some(parent) = Path::new(DB_PATH).parent() {
         println!("Creating directory at: {:?}", parent);
         fs::create_dir_all(parent)?;
     }
-
-    println!("Attempting to open database at: {}", DB_PATH);
-    
-    // Create the database connection first
+    println!("Attempting to open database at: {}", DB_PATH);    
     conn.call(|conn| {
         println!("Creating table...");
         conn.execute(
@@ -210,4 +217,23 @@ async fn dump_database(conn: &Connection) -> Result<(), Box<dyn std::error::Erro
         Ok(())
     }).await?;
     Ok(())
+}
+
+
+////////////////////////////////////////
+
+#[derive(Deserialize)]
+struct Request {
+    value: u8,
+}
+
+#[derive(Serialize)]
+struct Response {
+    received: u8,
+}
+
+async fn handle_post(Json(payload): Json<Request>) -> Json<Response> {
+    Json(Response {
+        received: payload.value
+    })
 }
