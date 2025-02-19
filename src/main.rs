@@ -18,7 +18,7 @@ mod keys;
 
 const DB_PATH: &str = "data/tfhe.db";
 
-fn single_encryption(public_key: &CompactPublicKey, a: u8) -> Result<(), Box<dyn std::error::Error>> {
+async fn single_encryption(conn: &Connection, public_key: &CompactPublicKey, a: u8) -> Result<(), Box<dyn std::error::Error>> {
     let public_key = keys::load_public_key()?;
     let compact_list = CompactCiphertextList::builder(&public_key).push(a).build();
     let _expanded = compact_list.expand().unwrap();
@@ -26,7 +26,12 @@ fn single_encryption(public_key: &CompactPublicKey, a: u8) -> Result<(), Box<dyn
     let mut serialized_data: Vec<u8> = vec![];
     bincode::serialize_into(&mut serialized_data, &value)?;
     println!("serialized_data: {:?}", serialized_data);
-    // add logic to write to db
+    let public_key = keys::load_public_key()?;
+    let key = string_to_u256("9999999999999999999999999999999999999")?;
+    let compact_list = CompactCiphertextList::builder(&public_key).push(26u8).build();
+    let _expanded = compact_list.expand().unwrap();
+    let value:FheUint8 = _expanded.get(0).unwrap().unwrap();
+    insert_computation(&conn, key, &value).await?;
     Ok(())
 }
 
@@ -41,36 +46,54 @@ fn add(lhs: U256, rhs: U256) {
 fn requestDecryption(ct: U256) {
     
 }
- 
+
+fn string_to_u256(hex_str: &str) -> Result<U256, Box<dyn std::error::Error>> {
+    if hex_str.starts_with("0x") {
+        Ok(U256::from_str_radix(&hex_str[2..], 16)?)
+    } else {
+        Ok(U256::from_dec_str(hex_str)?)
+    }
+}
+
+// Add these route handlers
+async fn hello() -> &'static str {
+    "Hello, World!"
+}
+
+#[derive(Deserialize)]
+struct ComputeRequest {
+    value: u8,
+}
+
+#[derive(Serialize)]
+struct ComputeResponse {
+    result: String,
+}
+
+async fn compute(Json(payload): Json<ComputeRequest>) -> Json<ComputeResponse> {
+    Json(ComputeResponse {
+        result: format!("Computed value: {}", payload.value)
+    })
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
     if let Some(parent) = Path::new(DB_PATH).parent() {
         fs::create_dir_all(parent)?;
     }
     let conn = Connection::open(DB_PATH).await?;
     init_db(&conn).await?;
-
-    println!("Loading public key and creating test value...");
-    let public_key = keys::load_public_key()?;
-    let compact_list = CompactCiphertextList::builder(&public_key).push(25u8).build();
-    let _expanded = compact_list.expand().unwrap();
-    let value:FheUint8 = _expanded.get(0).unwrap().unwrap();
-
-    println!("Inserting test value with key 1234...");
-    insert_computation(&conn, U256::from(123400), &value).await?;
-
-    // Verify the data was written
-    println!("Verifying data was written...");
-    if let Some(_) = get_computation(&conn, U256::from(1234)).await? {
-        println!("✅ Data successfully written and retrieved!");
-    } else {
-        println!("❌ Data not found in database!");
-    }
-
-    // Add this to your main function after insert:
-    dump_database(&conn).await?;
-
+    let cors = CorsLayer::permissive();
+    let app = Router::new()
+        .route("/", get(hello)) 
+        .route("/compute", post(compute))
+        .layer(cors)
+        .with_state(conn);
+    println!("Server running on http://localhost:3000");
+    axum::serve(
+        tokio::net::TcpListener::bind("127.0.0.1:3000").await?,
+        app
+    ).await?;
     Ok(())  
 }
 
@@ -149,8 +172,7 @@ async fn insert_computation(
 async fn get_computation(
     conn: &Connection,
     key: U256,
-) -> Result<Option<FheUint8>, Box<dyn std::error::Error>> {
-    // Convert U256 to bytes
+) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
     let mut key_bytes = [0u8; 32];
     key.to_big_endian(&mut key_bytes);
 
@@ -163,33 +185,12 @@ async fn get_computation(
     }).await;
 
     match result {
-        Ok(bytes) => {
-            let ciphertext: FheUint8 = bincode::deserialize(&bytes)?;
-            Ok(Some(ciphertext))
-        }
+        Ok(bytes) => Ok(Some(bytes)),
         Err(tokio_rusqlite::Error::Rusqlite(rusqlite::Error::QueryReturnedNoRows)) => Ok(None),
         Err(e) => Err(Box::new(e)),
     }
 }
 
-async fn example_usage() -> Result<(), Box<dyn std::error::Error>> {
-    let conn = Connection::open(DB_PATH).await?;
-    init_db(&conn).await?;
-
-    // // Example key and ciphertext
-    // let key = U256::from(1234);  // Your U256 key
-    // let ciphertext = /* your FheUint8 */;
-
-    // // Insert
-    // insert_computation(&conn, key, &ciphertext).await?;
-
-    // // Retrieve
-    // if let Some(retrieved_ciphertext) = get_computation(&conn, key).await? {
-    //     println!("Retrieved ciphertext for key: {}", key);
-    // }
-
-    Ok(())
-}
 
 async fn dump_database(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
     println!("\nDumping database contents:");
