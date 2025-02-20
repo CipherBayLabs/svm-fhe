@@ -1,0 +1,25 @@
+.anchor
+.DS_Store
+target
+**/*.rs.bk
+node_modules
+test-ledger
+.yarn
+
+# Listener directory
+listener/node_modules/
+listener/dist/
+listener/.env
+
+# Anchor/Solana
+.anchor
+.DS_Store
+target
+**/*.rs.bk
+test-ledger
+.yarn
+
+# Node (for any Node.js parts in Anchor)
+**/node_modules/
+**/dist/
+**/.env
