@@ -40,8 +40,10 @@ pub mod blockchain {
         Ok(())
     }
 
-    pub fn transfer(ctx: Context<Transfer>, amount: [u8; 32]) -> Result<()> {
-
+    pub fn transfer(ctx: Context<Transfer>, amount: [u8; 32], recipient: Pubkey) -> Result<()> {
+        // TODO: create helper to check if recipeient already has mapping
+        msg!("Transferring {:?} to {}", amount, recipient);
+        Ok(())
     }
 
 
@@ -81,10 +83,11 @@ pub struct Deposit<'info> {
 }
 
 #[derive(Accounts)]
+#[instruction(value: [u8; 32])]
 pub struct Transfer<'info> {
     #[account(
         mut,
-        seeds = [value.as_ref()],  // Use the 32-byte array as seeds
+        seeds = [value.as_ref()],
         bump
     )]
     pub deposit_info: Account<'info, DepositInfo>,

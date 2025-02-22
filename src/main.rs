@@ -18,8 +18,7 @@ mod keys;
 
 const DB_PATH: &str = "data/tfhe.db";
 
-
-async fn single_encryption(key: String, a: u8) -> Result<(), Box<dyn std::error::Error>> {
+async fn single_encryption(key: [u8; 32], a: u8) -> Result<(), Box<dyn std::error::Error>> {
     let conn = Connection::open(DB_PATH).await?;
     let public_key = keys::load_public_key()?;
     let compact_list = CompactCiphertextList::builder(&public_key).push(a).build();
@@ -28,7 +27,6 @@ async fn single_encryption(key: String, a: u8) -> Result<(), Box<dyn std::error:
     let mut serialized_data: Vec<u8> = vec![];
     bincode::serialize_into(&mut serialized_data, &value)?;
     let public_key = keys::load_public_key()?;
-    let key = string_to_u256(&key)?;
     let compact_list = CompactCiphertextList::builder(&public_key).push(a).build();
     let _expanded = compact_list.expand().unwrap();
     let value:FheUint8 = _expanded.get(0).unwrap().unwrap();
@@ -36,7 +34,7 @@ async fn single_encryption(key: String, a: u8) -> Result<(), Box<dyn std::error:
     Ok(())
 }
 
-fn add(lhs: U256) {
+fn add(lhs: [u8; 32], rhs: [u8; 32]) {
     // pull the ciphertexts from the db
     //initialize the server w the key
     // add the ciphertexts
@@ -44,19 +42,10 @@ fn add(lhs: U256) {
     // write the result to the db
 }
 
-fn requestDecryption(ct: U256) {
+// fn requestDecryption(ct: U256) {
     
-}
+// }
 
-fn string_to_u256(hex_str: &str) -> Result<U256, Box<dyn std::error::Error>> {
-    if hex_str.starts_with("0x") {
-        Ok(U256::from_str_radix(&hex_str[2..], 16)?)
-    } else {
-        Ok(U256::from_dec_str(hex_str)?)
-    }
-}
-
-// Add these route handlers
 async fn hello() -> &'static str {
     "Hello, World!"
 }
@@ -68,7 +57,7 @@ struct ComputeRequest {
 
 #[derive(Deserialize)]
 struct EncryptRequest {
-    key: String,
+    key: [u8; 32],
     value: u8,
 }
 
@@ -83,6 +72,37 @@ async fn compute(Json(payload): Json<ComputeRequest>) -> Json<ComputeResponse> {
     })
 }
 
+#[derive(Deserialize)]
+struct InsertRequest {
+    key: [u8; 32],
+    value: FheUint8,
+}
+
+////////////////////////////////////////
+
+#[derive(Deserialize)]
+struct Request {
+    value: u8,
+}
+
+#[derive(Serialize)]
+struct Response {
+    received: u8,
+}
+
+async fn handle_single_encryption(Json(payload): Json<Request>) -> Json<Response> {
+    Json(Response {
+        received: payload.value
+    })
+}
+
+async fn handle_encrypt(Json(payload): Json<EncryptRequest>) -> StatusCode {
+    match single_encryption(payload.key, payload.value).await {
+        Ok(_) => StatusCode::OK,
+        Err(_) => StatusCode::INTERNAL_SERVER_ERROR,
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(parent) = Path::new(DB_PATH).parent() {
@@ -91,20 +111,35 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let conn = Connection::open(DB_PATH).await?;
     init_db(&conn).await?;
 
+    // Add some test data
+    let test_key = [1u8; 32]; 
+    let test_value = 42u8;
+    conn.call(move |conn| {
+        conn.execute(
+            "INSERT OR REPLACE INTO computations (key, ciphertext) VALUES (?1, ?2)",
+            rusqlite::params![test_key.to_vec(), test_value.to_le_bytes()],
+        )
+    }).await?;
+
+    dump_database(&conn).await?;
+
     let cors = CorsLayer::permissive();
     let app = Router::new()
         .route("/", get(hello))
         .route("/compute", post(compute))
-        .route("/post", post(handle_post))
+        .route("/encrypt", post(handle_encrypt))
         .layer(cors)
-        .with_state(conn);
+        .with_state(conn.clone());
 
     println!("Server running on http://localhost:3000");
+    
+    // Could also add dump here to see initial state
+    dump_database(&conn).await?;
+
     axum::serve(
         tokio::net::TcpListener::bind("127.0.0.1:3000").await?,
         app
     ).await?;
-
     Ok(())
 }
 
@@ -119,59 +154,38 @@ async fn init_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
         println!("Creating table...");
         conn.execute(
             "CREATE TABLE IF NOT EXISTS computations (
-                key BLOB NOT NULL PRIMARY KEY,
+                key CHAR(32) NOT NULL PRIMARY KEY,
                 ciphertext BLOB NOT NULL
             )",
             [],
         )
     }).await?;
-
     println!("Database initialized successfully");
     Ok(())
 }
 
 async fn insert_computation(
     conn: &Connection, 
-    key: U256, 
+    key: [u8; 32], 
     ciphertext: &FheUint8
 ) -> Result<(), Box<dyn std::error::Error>> {
     println!("Serializing ciphertext...");
     let serialized_ciphertext = bincode::serialize(ciphertext)?;
-    println!("Serialized ciphertext size: {} bytes", serialized_ciphertext.len());
     
     println!("Converting U256 key to bytes...");
-    let mut key_bytes = [0u8; 32];
-    key.to_big_endian(&mut key_bytes);
-    println!("Key bytes: {:?}", key_bytes.to_vec());
-    
+    let mut key_bytes = [0u8; 32];  // Define key_bytes here    
     println!("Executing INSERT query...");
     let result = conn.call(move |conn| {
-        // Start a transaction
         let tx = conn.transaction()?;
-        
         tx.execute(
             "INSERT OR REPLACE INTO computations (key, ciphertext) VALUES (?1, ?2)",
             rusqlite::params![key_bytes.to_vec(), serialized_ciphertext],
         )?;
-        
-        // Commit the transaction
         tx.commit()?;
-        Ok(1) // Return number of affected rows
+        Ok(1)  // Return a Result with a value
     }).await?;
     
     println!("Insert completed. Rows affected: {}", result);
-
-    // Verify the data immediately after insert
-    conn.call(move |conn| {
-        let count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM computations",
-            [],
-            |row| row.get(0),
-        )?;
-        println!("Total rows in database: {}", count);
-        Ok(())
-    }).await?;
-
     Ok(())
 }
 
@@ -198,42 +212,26 @@ async fn get_computation(
     }
 }
 
-
 async fn dump_database(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
     println!("\nDumping database contents:");
     conn.call(|conn| {
-        let mut stmt = conn.prepare("SELECT * FROM computations")?;
+        let mut stmt = conn.prepare("SELECT key, ciphertext FROM computations")?;
         let rows = stmt.query_map([], |row| {
             let key: Vec<u8> = row.get(0)?;
-            let cipher: Vec<u8> = row.get(1)?;
-            Ok((key, cipher))
+            let ciphertext: Vec<u8> = row.get(1)?;
+            Ok((key, ciphertext))
         })?;
-        
+
+        let mut count = 0;
         for row in rows {
-            if let Ok((key, cipher)) = row {
-                println!("Key length: {}, Cipher length: {}", key.len(), cipher.len());
-            }
+            let (key, ciphertext) = row?;
+            println!("Row {}: key length = {}, ciphertext length = {}", 
+                count, key.len(), ciphertext.len());
+            println!("Key: {:?}", key);
+            count += 1;
         }
+        println!("Total rows: {}", count);
         Ok(())
     }).await?;
     Ok(())
-}
-
-
-////////////////////////////////////////
-
-#[derive(Deserialize)]
-struct Request {
-    value: u8,
-}
-
-#[derive(Serialize)]
-struct Response {
-    received: u8,
-}
-
-async fn handle_post(Json(payload): Json<Request>) -> Json<Response> {
-    Json(Response {
-        received: payload.value
-    })
 }
