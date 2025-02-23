@@ -103,6 +103,39 @@ async fn handle_encrypt(Json(payload): Json<EncryptRequest>) -> StatusCode {
     }
 }
 
+// Add this struct for the request
+#[derive(Deserialize)]
+struct GetRequest {
+    key: [u8; 32],
+}
+
+// Add this handler
+async fn handle_get(
+    State(conn): State<Connection>,
+    Json(payload): Json<GetRequest>,
+) -> Result<Json<Vec<u8>>, StatusCode> {
+    println!("GET request received!");
+    println!("Attempting to get value for key: {:?}", payload.key);
+    
+    // Dump DB contents to see what's there
+    dump_database(&conn).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    match get_computation(&conn, payload.key).await {
+        Ok(Some(value)) => {
+            println!("Found value: {:?}", value);
+            Ok(Json(value))
+        },
+        Ok(None) => {
+            println!("No value found for key");
+            Err(StatusCode::NOT_FOUND)
+        },
+        Err(e) => {
+            println!("Error getting value: {:?}", e);
+            Err(StatusCode::INTERNAL_SERVER_ERROR)
+        }
+    }
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     if let Some(parent) = Path::new(DB_PATH).parent() {
@@ -128,10 +161,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/", get(hello))
         .route("/compute", post(compute))
         .route("/encrypt", post(handle_encrypt))
+        .route("/get", post(handle_get))
         .layer(cors)
         .with_state(conn.clone());
 
     println!("Server running on http://localhost:3000");
+    println!("Routes available:");
+    println!("  GET  /");
+    println!("  POST /compute");
+    println!("  POST /encrypt");
+    println!("  POST /get");
     
     // Could also add dump here to see initial state
     dump_database(&conn).await?;
@@ -192,16 +231,18 @@ async fn insert_computation(
 // Helper function to retrieve data
 async fn get_computation(
     conn: &Connection,
-    key: U256,
+    key: [u8; 32],
 ) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
-    let mut key_bytes = [0u8; 32];
-    key.to_big_endian(&mut key_bytes);
-
+    println!("Executing SQL query for key: {:?}", key);
     let result = conn.call(move |conn| {
         conn.query_row(
             "SELECT ciphertext FROM computations WHERE key = ?1",
-            rusqlite::params![key_bytes.to_vec()],
-            |row| row.get::<_, Vec<u8>>(0)
+            rusqlite::params![key.to_vec()],
+            |row| {
+                let value: Vec<u8> = row.get(0)?;
+                println!("Found in DB: {:?}", value);
+                Ok(value)
+            }
         )
     }).await;
 
