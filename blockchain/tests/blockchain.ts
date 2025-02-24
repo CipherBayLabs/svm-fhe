@@ -47,42 +47,41 @@ describe("blockchain", () => {
   });
 
 
-  // it("Can transfer SOL", async () => {
-  //   // Use helper to generate random value
-  //   const value = generateRandomBytes32();
+  it("Can transfer SOL", async () => {
+    // Use helper to generate random value
+    const value = generateRandomBytes32();
     
-  //   // Derive PDA using the value as seeds
-  //   const [depositInfoPDA] = PublicKey.findProgramAddressSync(
-  //       [Buffer.from(value)],
-  //       program.programId
-  //   );
+    // Derive PDA using the value as seeds
+    const [depositInfoPDA] = PublicKey.findProgramAddressSync(
+      [provider.publicKey.toBuffer()],
+      program.programId
+    );
+    // Generate new recipient
+    const recipient = anchor.web3.Keypair.generate();
 
-  //   // Generate new recipient
-  //   const recipient = anchor.web3.Keypair.generate();
+    // First deposit to initialize the account
+    await program.methods
+        .deposit(value)
+        .accounts({
+            depositInfo: depositInfoPDA,
+            user: provider.publicKey,
+            systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
 
-  //   // First deposit to initialize the account
-  //   await program.methods
-  //       .deposit(value)
-  //       .accounts({
-  //           depositInfo: depositInfoPDA,
-  //           user: provider.publicKey,
-  //           systemProgram: anchor.web3.SystemProgram.programId,
-  //       })
-  //       .rpc();
+    // Then transfer (just emits events)
+    const tx = await program.methods
+        .transfer(value, recipient.publicKey)
+        .accounts({
+            depositInfo: depositInfoPDA,
+            user: provider.publicKey,
+            systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
 
-  //   // Then transfer (just emits events)
-  //   const tx = await program.methods
-  //       .transfer(value, recipient.publicKey)
-  //       .accounts({
-  //           depositInfo: depositInfoPDA,
-  //           user: provider.publicKey,
-  //           systemProgram: anchor.web3.SystemProgram.programId,
-  //       })
-  //       .rpc();
-
-  //   console.log("Transfer transaction signature", tx);
-  //   console.log("Random value used:", value);
-  // });
+    console.log("Transfer transaction signature", tx);
+    console.log("Random value used:", value);
+  });
 
   it("Can emit bytes", async () => {
     // Generate random 32 bytes
