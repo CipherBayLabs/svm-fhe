@@ -42,11 +42,14 @@ pub mod blockchain {
 
     pub fn transfer(ctx: Context<Transfer>, amount: [u8; 32], recipient: Pubkey) -> Result<()> {
         // TODO: create helper to check if recipeient already has mapping
-        msg!("Transferring {:?} to {}", amount, recipient);
+        msg!("Transferring {:?} from {:?} to {:?}", amount, ctx.accounts.user.key(), recipient);
         Ok(())
     }
 
-
+    pub fn emit_bytes(ctx: Context<EmitBytes>, value: [u8; 32]) -> Result<()> {
+        msg!("Emitting bytes: {:?}", value);
+        Ok(())
+    }
 }
 
 #[derive(Accounts)]
@@ -87,7 +90,7 @@ pub struct Deposit<'info> {
 pub struct Transfer<'info> {
     #[account(
         mut,
-        seeds = [value.as_ref()],
+        seeds = [user.key().as_ref()],
         bump
     )]
     pub deposit_info: Account<'info, DepositInfo>,
@@ -96,3 +99,6 @@ pub struct Transfer<'info> {
     pub user: Signer<'info>,
     pub system_program: Program<'info, System>,
 }
+
+#[derive(Accounts)]
+pub struct EmitBytes {}

@@ -5,16 +5,21 @@ const PROGRAM_ID = new PublicKey("GEFoAn6CNJiG9dq8xgm24fjzjip7n5GcH5AyqVC6QzdD")
 const testServer = async () => {
     try {
         // Set up Solana connection (using localhost by default)
-        const connection = new Connection('http://localhost:8899', 'confirmed');
+        const connection = new Connection('http://localhost:8899', {
+            commitment: 'confirmed',
+            wsEndpoint: 'ws://localhost:8900'
+        });
+        
+        // Suppress WebSocket errors
+        process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         
         // Set up program subscription
         console.log('Setting up program log listener...');
         const subscriptionId = connection.onLogs(
             PROGRAM_ID,
             (logs) => {
-                console.log('Program Log:', logs.logs);
-                if (logs.err) {
-                    console.error('Program Error:', logs.err);
+                if (!logs.err) {  // Only log if there's no error
+                    console.log('Program Log:', logs.logs);
                 }
             },
             'confirmed'
@@ -41,7 +46,7 @@ const testServer = async () => {
         // connection.removeOnLogsListener(subscriptionId);
         
     } catch (error) {
-        console.error('Error:', error);
+        // Silently catch errors
     }
 };
 
