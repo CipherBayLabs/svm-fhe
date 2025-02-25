@@ -59,16 +59,6 @@ describe("blockchain", () => {
     // Generate new recipient
     const recipient = anchor.web3.Keypair.generate();
 
-    // First deposit to initialize the account
-    await program.methods
-        .deposit(value)
-        .accounts({
-            depositInfo: depositInfoPDA,
-            user: provider.publicKey,
-            systemProgram: anchor.web3.SystemProgram.programId,
-        })
-        .rpc();
-
     // Then transfer (just emits events)
     const tx = await program.methods
         .transfer(value, recipient.publicKey)

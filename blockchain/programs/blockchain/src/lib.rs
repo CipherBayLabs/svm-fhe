@@ -41,7 +41,7 @@ pub mod blockchain {
     }
 
     pub fn transfer(ctx: Context<Transfer>, amount: [u8; 32], recipient: Pubkey) -> Result<()> {
-        // TODO: create helper to check if recipeient already has mapping
+        msg!("Sender's deposit value: {:?}", ctx.accounts.deposit_info.value);
         msg!("Transferring {:?} from {:?} to {:?}", amount, ctx.accounts.user.key(), recipient);
         Ok(())
     }
