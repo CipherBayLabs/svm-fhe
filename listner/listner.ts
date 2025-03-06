@@ -4,13 +4,16 @@ const PROGRAM_ID = new PublicKey("GEFoAn6CNJiG9dq8xgm24fjzjip7n5GcH5AyqVC6QzdD")
 
 const testServer = async () => {
     try {
+        // Set up Solana connection (using localhost by default)
         const connection = new Connection('http://localhost:8899', {
             commitment: 'confirmed',
             wsEndpoint: 'ws://localhost:8900'
         });
         
+        // Suppress WebSocket errors
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         
+        // Set up program subscription
         console.log('Setting up program log listener...');
         const subscriptionId = connection.onLogs(
             PROGRAM_ID,
@@ -29,6 +32,7 @@ const testServer = async () => {
                             console.log('User:', user);
                             console.log('Amount:', amount);
                             console.log('Ciphertext:', depositInfoLog.split("Deposit info:")[1].trim());
+                            deposit(Number(amount), user);
                         }
                     }
 
@@ -57,10 +61,38 @@ const testServer = async () => {
         );
 
         console.log('Listening for program logs... (Press Ctrl+C to exit)');
+    
         
-    } catch (error) {
-        // Silently catch errors
-    }
+    } catch (error) {}
 };
+
+const deposit = async (lamports: number, key: string) => {
+    const value = BigInt(lamports);
+    
+    // Convert key string to bytes array
+    const encoder = new TextEncoder();
+    const keyBytes = new Uint8Array(32);
+    const encodedKey = encoder.encode(key);
+    
+    // Copy encoded key into fixed-size array, padding with zeros if needed
+    keyBytes.set(encodedKey.slice(0, 32));  // Take first 32 bytes or pad with zeros
+
+    const requestBody = {
+        value: Number(value),
+        key: Array.from(keyBytes)  // Convert to regular array for JSON
+    };
+
+
+    console.log('Sending to Rust server:', requestBody);
+
+    const response = await fetch('http://localhost:3000/post', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+    });
+    console.log('Rust Server Response:', await response.text());
+}
 
 testServer(); 

@@ -1,19 +1,38 @@
 use tfhe::prelude::*;
-use tfhe::{ set_server_key, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint64, ServerKey };
+use tfhe::{ set_server_key, CompactCiphertextList, CompactPublicKey, FheUint64, ServerKey };
 use std::io::Cursor;
 use axum::{
     routing::{get, post}, Router, Json, extract::State,
     http::StatusCode,
 };
 use serde::{Deserialize, Serialize};
-use tower_http::cors::CorsLayer;
 use std::sync::Arc;
 use tokio_rusqlite::Connection;
 use std::path::Path;
 use std::fs;
+use async_trait::async_trait;
 mod keys;
 
 const DB_PATH: &str = "data/tfhe.db";
+
+#[derive(Clone)]
+struct AppState {
+    db: Arc<Connection>,
+    pubkey: Arc<CompactPublicKey>,
+}
+
+#[async_trait]
+trait PubkeyAccess {
+    fn get_pubkey(&self) -> Arc<CompactPublicKey>;
+}
+
+impl PubkeyAccess for AppState {
+    fn get_pubkey(&self) -> Arc<CompactPublicKey> {
+        self.pubkey.clone()
+    }
+}
+
+////////////////// Request structs //////////////////
 
 #[derive(Deserialize)]
 struct Request {
@@ -21,17 +40,28 @@ struct Request {
     value: u64,
 }
 
+#[derive(Deserialize)]
+struct Transfer {
+    sender_key: [u8; 32],
+    recipient_key: [u8; 32],
+    value: u64,
+}
+
+
+////////////////// Main function //////////////////
+
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create data directory if it doesn't exist
     if !Path::new("data").exists() {
         fs::create_dir("data").expect("Failed to create data directory");
     }
-
-    let conn = Connection::open(DB_PATH).await?;
-    init_db(&conn).await;
+    let state = AppState {
+        db: Arc::new(Connection::open(DB_PATH).await?),
+        pubkey: Arc::new(keys::load_public_key()?),
+    };
     let app = Router::new()
-        .route("/post", post(handle_post));
+        .route("/post", post(handle_post))
+        .with_state(state);
 
     println!("Server starting on http://localhost:3000");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
@@ -39,10 +69,16 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-////////////////// Database functions //////////////////
+////////////////// Database endpoint functions //////////////////
 
-async fn handle_post(Json(payload): Json<Request>) -> Result<StatusCode, StatusCode> {
+async fn handle_post(State(state): State<AppState>, Json(payload): Json<Request>) -> Result<StatusCode, StatusCode> {
     println!("Received value: {}, key: {:?}", payload.value, payload.key);
+    let public_key = state.get_pubkey();
+    let compact_list = CompactCiphertextList::builder(&public_key)
+        .push(payload.value)
+        .build();
+    let serialized_list = bincode::serialize(&compact_list)
+    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let conn = Connection::open(DB_PATH)
         .await
@@ -51,7 +87,7 @@ async fn handle_post(Json(payload): Json<Request>) -> Result<StatusCode, StatusC
     conn.call(move |conn| {
         conn.execute(
             "INSERT OR REPLACE INTO computations (key, ciphertext) VALUES (?1, ?2)",
-            (payload.key, payload.value),
+            (payload.key, serialized_list),
         ).map_err(|e| {
             println!("Insert error: {}", e);
             e
@@ -61,6 +97,10 @@ async fn handle_post(Json(payload): Json<Request>) -> Result<StatusCode, StatusC
     println!("Successfully saved to database!");
     Ok(StatusCode::OK)
 }
+
+
+
+////////////////// Database helper functions //////////////////
 
 async fn init_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
     if let Some(parent) = Path::new(DB_PATH).parent() {

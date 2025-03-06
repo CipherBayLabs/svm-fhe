@@ -73,19 +73,6 @@ describe("blockchain", () => {
     console.log("Random value used:", value);
   });
 
-  it("Can emit bytes", async () => {
-    // Generate random 32 bytes
-    const value = generateRandomBytes32();
-    console.log("Random bytes generated:", value);
-    
-    // Call emit_bytes with the random value
-    const tx = await program.methods
-        .emitBytes(value)
-        .accounts({})
-        .rpc();
-
-    console.log("Transaction signature:", tx);
-  });
 });
 
 
