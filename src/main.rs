@@ -1,7 +1,5 @@
 use tfhe::prelude::*;
-use tfhe::{
-    set_server_key, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint8, ServerKey
-};
+use tfhe::{ set_server_key, CompactCiphertextList, CompactPublicKey, ConfigBuilder, FheUint64, ServerKey };
 use std::io::Cursor;
 use axum::{
     routing::{get, post}, Router, Json, extract::State,
@@ -11,7 +9,6 @@ use serde::{Deserialize, Serialize};
 use tower_http::cors::CorsLayer;
 use std::sync::Arc;
 use tokio_rusqlite::Connection;
-use primitive_types::U256;
 use std::path::Path;
 use std::fs;
 mod keys;
@@ -20,26 +17,69 @@ const DB_PATH: &str = "data/tfhe.db";
 
 #[derive(Deserialize)]
 struct Request {
-    value: u8,
+    key: [u8; 32],
+    value: u64,
 }
-
-async fn handle_post(Json(payload): Json<Request>) -> StatusCode {
-    println!("Received value: {}", payload.value);
-    StatusCode::OK
-}
-
 
 #[tokio::main]
-async fn main() {
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    // Create data directory if it doesn't exist
+    if !Path::new("data").exists() {
+        fs::create_dir("data").expect("Failed to create data directory");
+    }
+
+    let conn = Connection::open(DB_PATH).await?;
+    init_db(&conn).await;
     let app = Router::new()
         .route("/post", post(handle_post));
 
-    // Run server
     println!("Server starting on http://localhost:3000");
     let listener = tokio::net::TcpListener::bind("0.0.0.0:3000").await.unwrap();
     axum::serve(listener, app).await.unwrap();
+    Ok(())
 }
-
 
 ////////////////// Database functions //////////////////
 
+async fn handle_post(Json(payload): Json<Request>) -> Result<StatusCode, StatusCode> {
+    println!("Received value: {}, key: {:?}", payload.value, payload.key);
+
+    let conn = Connection::open(DB_PATH)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    conn.call(move |conn| {
+        conn.execute(
+            "INSERT OR REPLACE INTO computations (key, ciphertext) VALUES (?1, ?2)",
+            (payload.key, payload.value),
+        ).map_err(|e| {
+            println!("Insert error: {}", e);
+            e
+        })?;
+        Ok(())
+    }).await;
+    println!("Successfully saved to database!");
+    Ok(StatusCode::OK)
+}
+
+async fn init_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
+    if let Some(parent) = Path::new(DB_PATH).parent() {
+        println!("Creating directory at: {:?}", parent);
+        fs::create_dir_all(parent)?;
+    }
+    conn.call(|conn| {
+        conn.execute(
+            "CREATE TABLE IF NOT EXISTS computations (
+                key CHAR(32) NOT NULL PRIMARY KEY,
+                ciphertext BLOB NOT NULL
+            )",
+            (),
+        ).map_err(|e| {
+            println!("Database error: {}", e);
+            e
+        })?;
+        Ok(())
+    })
+    .await;
+    Ok(())
+}
