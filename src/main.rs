@@ -98,6 +98,10 @@ async fn handle_post(State(state): State<AppState>, Json(payload): Json<Request>
     Ok(StatusCode::OK)
 }
 
+async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Transfer>) -> Result<StatusCode, StatusCode> {
+
+}
+
 
 
 ////////////////// Database helper functions //////////////////
@@ -122,4 +126,10 @@ async fn init_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
     })
     .await;
     Ok(())
+}
+
+async fn get_ciphertext(conn: &Connection, key: &[u8; 32]) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
+    let mut stmt = conn.prepare("SELECT ciphertext FROM computations WHERE key = ?")?;
+    let ciphertext = stmt.query_row(key, |row| row.get::<Vec<u8>>("ciphertext"))?;
+    Ok(ciphertext)
 }

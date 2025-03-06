@@ -3,3 +3,5 @@
 Cargo.lock
 *.db
 /test-ledger
+listener/node_modules/
+listener/dist/
