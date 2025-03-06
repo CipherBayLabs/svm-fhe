@@ -1,5 +1,7 @@
 # TFHE Encryption Server with Solana Integration
 
+The idea here is to create a off-chain server that handles FHE operations symbolically on the SVM. Essentially when an on-chain action is needed, an event will be emited and orginazed via a TS server where it then will be forwarded to the Rust backend where the encryption, FHE opertaions and decryption requests are handled. Next steps include on-chain verification. 
+
 ## 🔍 Overview
 
 This project demonstrates a multi-component system for handling homomorphic encryption with blockchain verification:
@@ -8,7 +10,7 @@ This project demonstrates a multi-component system for handling homomorphic encr
    - Handles TFHE encryption/decryption
    - Provides REST API endpoints
    - Manages SQLite database storage
-   - Generates and manages encryption keys
+   - Generates and manages encryption keys (seperate script)
 
 2. **Solana Program**
    - Records symbolic operations
@@ -20,8 +22,6 @@ This project demonstrates a multi-component system for handling homomorphic encr
    - Forwards requests to Rust server
    - Provides client interface
 
-## 🏗 System Flow
-
 ## 🧪 Testing
 
 The project includes multiple test suites:
@@ -32,37 +32,7 @@ The project includes multiple test suites:
 
 ## 🐛 Known Issues and Solutions
 
-### TypeScript Linter Errors
 
-1. **Account Property Type Mismatch**
-   ```typescript
-   // Error: Object literal may only specify known properties
-   // In blockchain/tests/blockchain.ts
-   .accounts({
-     depositInfo: depositInfoPDA,
-     // ...
-   })
-   ```
-   Solution: Update account types in Anchor program to match TypeScript definitions
 
-2. **Value Type Mismatch**
-   ```typescript
-   // Error: Argument type '[number[]]' not assignable to parameter
-   .deposit(value)
-   ```
-   Solution: Convert number array to BN (Big Number):
-   ```typescript
-   import { BN } from '@coral-xyz/anchor';
-   .deposit(new BN(value))
-   ```
 
-3. **Buffer Method Error**
-   ```typescript
-   // Error: Property 'padEnd' does not exist on type 'Buffer'
-   Buffer.from(input).slice(0, 32).padEnd(32, 0)
-   ```
-   Solution: Use Buffer padding method:
-   ```typescript
-   const buf = Buffer.from(input).slice(0, 32);
-   const padded = Buffer.concat([buf, Buffer.alloc(32 - buf.length)]);
-   ```
+
