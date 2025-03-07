@@ -38,8 +38,10 @@ pub mod blockchain {
     }
 
     pub fn transfer(ctx: Context<Transfer>, amount: [u8; 32], recipient: Pubkey) -> Result<()> {
-        msg!("Sender's deposit value: {:?}", ctx.accounts.deposit_info.value);
-        msg!("Transferring {:?} from {:?} to {:?}", amount, ctx.accounts.user.key(), recipient);
+        // Emit both sender's and recipient's ciphertext values
+        msg!("Sender's deposit value: {:?}", ctx.accounts.sender_deposit.value);
+        msg!("Recipient's deposit value: {:?}", ctx.accounts.recipient_deposit.value);
+        msg!("Transferring {:?} from {:?} to {:?}", amount, ctx.accounts.user.key(), ctx.accounts.recipient.key());
         Ok(())
     }
 
@@ -63,7 +65,7 @@ pub struct Deposit<'info> {
     #[account(
         init,
         payer = user,
-        space = 8 + 32 + 32,  // Updated space: discriminator + pubkey + bytes32
+        space = 8 + 32 + 32, 
         seeds = [user.key().as_ref()],
         bump
     )]
@@ -90,10 +92,21 @@ pub struct Transfer<'info> {
         seeds = [user.key().as_ref()],
         bump
     )]
-    pub deposit_info: Account<'info, DepositInfo>,
+    pub sender_deposit: Account<'info, DepositInfo>,
+
+    #[account(
+        mut,
+        seeds = [recipient.key().as_ref()],
+        bump
+    )]
+    pub recipient_deposit: Account<'info, DepositInfo>,
 
     #[account(mut)]
     pub user: Signer<'info>,
+
+    /// CHECK: This is just for logging the recipient's address
+    pub recipient: UncheckedAccount<'info>,
+    
     pub system_program: Program<'info, System>,
 }
 

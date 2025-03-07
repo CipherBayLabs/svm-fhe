@@ -9,6 +9,7 @@ describe("blockchain", () => {
   anchor.setProvider(anchor.AnchorProvider.env());
 
   const program = anchor.workspace.Blockchain as Program<Blockchain>;
+  const newUser = anchor.web3.Keypair.generate();
   const provider = anchor.getProvider();
 
   it("Is initialized!", async () => {
@@ -18,10 +19,8 @@ describe("blockchain", () => {
   });
 
   it("Can deposit SOL", async () => {
-    // Amount to deposit (1 SOL = 1_000_000_000 lamports)
     const amount = new anchor.BN(1_000_000_000);
     
-    // Get PDA for vault
     const [vaultPDA] = PublicKey.findProgramAddressSync(
       [Buffer.from("vault")],
       program.programId
@@ -46,31 +45,71 @@ describe("blockchain", () => {
     console.log("Deposit transaction signature", tx);
   });
 
+  it("Can deposit SOL from another account", async () => {
+    // Create new account with some SOL
+    
+    const signature = await provider.connection.requestAirdrop(
+        newUser.publicKey,
+        2_000_000_000  // 2 SOL (extra for fees)
+    );
+    await provider.connection.confirmTransaction(signature);
+
+    // Get PDAs
+    const [vaultPDA] = PublicKey.findProgramAddressSync(
+        [Buffer.from("vault")],
+        program.programId
+    );
+
+    const [depositInfoPDA] = PublicKey.findProgramAddressSync(
+        [newUser.publicKey.toBuffer()],  // Use new user's pubkey
+        program.programId
+    );
+
+    // Deposit 1 SOL
+    const amount = new anchor.BN(1_000_000_000);
+    const tx = await program.methods
+        .deposit(amount)
+        .accounts({
+            depositInfo: depositInfoPDA,
+            vault: vaultPDA,
+            user: newUser.publicKey,
+            systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .signers([newUser])  // Add new user as signer
+        .rpc();
+
+    console.log("Second deposit transaction signature", tx);
+});
+
 
   it("Can transfer SOL", async () => {
     // Use helper to generate random value
     const value = generateRandomBytes32();
+    
     
     // Derive PDA using the value as seeds
     const [depositInfoPDA] = PublicKey.findProgramAddressSync(
       [provider.publicKey.toBuffer()],
       program.programId
     );
+
     // Generate new recipient
-    const recipient = anchor.web3.Keypair.generate();
+    const recipient = newUser.publicKey;
 
     // Then transfer (just emits events)
     const tx = await program.methods
-        .transfer(value, recipient.publicKey)
+        .transfer(value, recipient)
         .accounts({
             depositInfo: depositInfoPDA,
             user: provider.publicKey,
+            recipient: recipient,
             systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc();
 
     console.log("Transfer transaction signature", tx);
     console.log("Random value used:", value);
+    console.log("Recipient:", recipient.toString());
   });
 
 });

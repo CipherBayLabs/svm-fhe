@@ -39,8 +39,9 @@ const testServer = async () => {
                     // Look for transfer logs
                     const transferLog = logs.logs.find(log => log.includes("Transferring"));
                     const senderDepositLog = logs.logs.find(log => log.includes("Sender's deposit value:"));
+                    const recipientDepositLog = logs.logs.find(log => log.includes("Recipient's deposit value:"));
+                    
                     if (transferLog) {
-                        // Parse sender, receiver and ciphertext
                         const matches = transferLog.match(/Transferring (.*) from (.*) to (.*)/);
                         if (matches) {
                             const ciphertext = matches[1];
@@ -52,6 +53,9 @@ const testServer = async () => {
                             console.log('Transfer ciphertext:', ciphertext);
                             if (senderDepositLog) {
                                 console.log('Sender deposit value:', senderDepositLog.split("Sender's deposit value:")[1].trim());
+                            }
+                            if (recipientDepositLog) {
+                                console.log('Recipient deposit value:', recipientDepositLog.split("Recipient's deposit value:")[1].trim());
                             }
                         }
                     }

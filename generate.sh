@@ -7,8 +7,8 @@ NC='\033[0m' # No Color
 
 echo "Building and running keys.rs..."
 
-# Run the keys binary
-if cargo run --bin keys; then
+# Run the keys binary with the new name
+if cargo run --bin generate_keys; then
     echo -e "${GREEN}Keys program completed successfully${NC}"
 else
     echo -e "${RED}Keys program failed${NC}"

@@ -18,5 +18,10 @@ primitive-types = "0.12.1"
 async-trait = "0.1"
 
 [[bin]]
-name = "keys"
+name = "generate_keys"
 path = "src/keys.rs"
+
+[[bin]]
+name = "db_test"
+path = "src/db_test.rs"
+

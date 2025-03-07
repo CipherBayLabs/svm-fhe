@@ -59,3 +59,11 @@ pub fn load_public_key() -> Result<CompactPublicKey, String> {
     let data = fs::read(PUBLIC_KEY_PATH).map_err(|e| e.to_string())?;
     bincode::deserialize(&data).map_err(|e| e.to_string())
 }
+
+pub fn load_client_key() -> Result<ClientKey, String> {
+    let data = fs::read(CLIENT_KEY_PATH)
+        .map_err(|e| format!("Failed to read client key: {}", e))?;
+    
+    bincode::deserialize(&data)
+        .map_err(|e| format!("Failed to deserialize client key: {}", e))
+}

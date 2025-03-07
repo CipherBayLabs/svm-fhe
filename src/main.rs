@@ -59,6 +59,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         db: Arc::new(Connection::open(DB_PATH).await?),
         pubkey: Arc::new(keys::load_public_key()?),
     };
+    init_db(&state.db).await?;
     let app = Router::new()
         .route("/post", post(handle_post))
         .with_state(state);
@@ -98,11 +99,12 @@ async fn handle_post(State(state): State<AppState>, Json(payload): Json<Request>
     Ok(StatusCode::OK)
 }
 
-async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Transfer>) -> Result<StatusCode, StatusCode> {
-
-}
-
-
+// async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Transfer>) -> Result<StatusCode, StatusCode> {
+//     let public_key = state.get_pubkey();
+//     // get the cipehrtexts for the sender and recipient
+//     let sender_ciphertext = get_ciphertext(&state.db, &payload.sender_key).await?;
+//     let recipient_ciphertext = get_ciphertext(&state.db, &payload.recipient_key).await?;
+// }
 
 ////////////////// Database helper functions //////////////////
 
@@ -128,8 +130,8 @@ async fn init_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-async fn get_ciphertext(conn: &Connection, key: &[u8; 32]) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
-    let mut stmt = conn.prepare("SELECT ciphertext FROM computations WHERE key = ?")?;
-    let ciphertext = stmt.query_row(key, |row| row.get::<Vec<u8>>("ciphertext"))?;
-    Ok(ciphertext)
-}
+// async fn get_ciphertext(conn: &Connection, key: &[u8; 32]) -> Result<Option<Vec<u8>>, Box<dyn std::error::Error>> {
+//     let mut stmt = conn.prepare("SELECT ciphertext FROM computations WHERE key = ?")?;
+//     let ciphertext = stmt.query_row(key, |row| row.get::<Vec<u8>>("ciphertext"))?;
+//     Ok(ciphertext)
+// }
