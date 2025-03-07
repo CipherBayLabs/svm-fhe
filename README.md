@@ -33,7 +33,7 @@ The project includes multiple test suites:
 ## Architecture 
 
 The process first begins when a user deposits a certain amount of lamports into the program via the deposit function. This will create a mapping from the user's address to a ciphertext that represents their lamport value. (down the road this can also be used for SPL tokens such as USDC). 
-[naughty.drawio.pdf](https://github.com/user-attachments/files/19120696/naughty.drawio.pdf)
+![naughty.drawio.pdf](https://github.com/user-attachments/files/19120696/naughty.drawio.pdf)
 
 
 
