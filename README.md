@@ -1,6 +1,6 @@
 # TFHE Encryption Server with Solana Integration
 
-The idea here is to create a off-chain server that handles FHE operations symbolically on the SVM. Essentially when an on-chain action is needed, an event will be emited and orginazed via a TS server where it then will be forwarded to the Rust backend where the encryption, FHE opertaions and decryption requests are handled. Next steps include on-chain verification. 
+The idea here is to create a off-chain server that handles FHE operations symbolically on the SVM. Essentially when an on-chain action is needed, an event will be emited and orginazed via a TS server where it then will be forwarded to the Rust backend where the encryption, FHE opertaions and decryption requests are handled. The Goal is to build a generalized FHE coprocessor that is native to the SVM, ideally including a wide range of operations, different FHE schemes and threshold decryption. Next steps include on-chain verification. 
 
 ## 🔍 Overview
 
@@ -24,14 +24,15 @@ This project demonstrates a multi-component system for handling homomorphic encr
 
 ## 🧪 Testing
 
-The project includes multiple test suites:
+The project includes multiple test suites: 
 - Rust unit tests for encryption logic
 - Integration tests for API endpoints
 - Anchor tests for Solana program
 - TypeScript tests for client functionality
 
-## 🐛 Known Issues and Solutions
+## Architecture 
 
+The process first begins when a user deposits a certain amount of lamports into the program via the deposit function. This will create a mapping from the user's address to a ciphertext that represents their lamport value. (down the road this can also be used for SPL tokens such as USDC). 
 
 
 
