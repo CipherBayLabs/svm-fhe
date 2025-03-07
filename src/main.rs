@@ -71,7 +71,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-////////////////// Database endpoint functions //////////////////
+////////////////// Server endpoint functions //////////////////
 
 async fn handle_post(State(state): State<AppState>, Json(payload): Json<Request>) -> Result<StatusCode, StatusCode> {
     println!("Received value: {}, key: {:?}", payload.value, payload.key);

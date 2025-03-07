@@ -85,8 +85,7 @@ describe("blockchain", () => {
   it("Can transfer SOL", async () => {
     // Use helper to generate random value
     const value = generateRandomBytes32();
-    
-    
+
     // Derive PDA using the value as seeds
     const [depositInfoPDA] = PublicKey.findProgramAddressSync(
       [provider.publicKey.toBuffer()],
