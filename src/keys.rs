@@ -67,3 +67,9 @@ pub fn load_client_key() -> Result<ClientKey, String> {
     bincode::deserialize(&data)
         .map_err(|e| format!("Failed to deserialize client key: {}", e))
 }
+
+pub fn load_server_key() -> Result<ServerKey, String> {
+    let data = fs::read(SERVER_KEY_PATH)
+        .map_err(|e| format!("Failed to read server key: {}", e))?;
+    bincode::deserialize(&data).map_err(|e| e.to_string())
+}

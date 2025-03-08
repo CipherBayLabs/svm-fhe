@@ -99,4 +99,21 @@ const deposit = async (lamports: number, key: string) => {
     console.log('Rust Server Response:', await response.text());
 }
 
+const transfer = async (ciphertext: string, sender: string, recipient: string) => {
+    const requestBody = {
+        ciphertext: ciphertext,
+        sender: sender,
+        recipient: recipient
+    };
+
+    const response = await fetch('http://localhost:3000/transfer', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },  
+        body: JSON.stringify(requestBody)
+    });
+    console.log('Rust Server Response:', await response.text());
+}
+
 testServer(); 

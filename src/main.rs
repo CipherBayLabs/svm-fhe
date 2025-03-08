@@ -19,16 +19,21 @@ const DB_PATH: &str = "data/tfhe.db";
 struct AppState {
     db: Arc<Connection>,
     pubkey: Arc<CompactPublicKey>,
+    server_key: Arc<ServerKey>,
 }
 
 #[async_trait]
 trait PubkeyAccess {
     fn get_pubkey(&self) -> Arc<CompactPublicKey>;
+    fn get_server_key(&self) -> Arc<ServerKey>;
 }
 
 impl PubkeyAccess for AppState {
     fn get_pubkey(&self) -> Arc<CompactPublicKey> {
         self.pubkey.clone()
+    }
+    fn get_server_key(&self) -> Arc<ServerKey> {
+        self.server_key.clone()
     }
 }
 
@@ -44,9 +49,8 @@ struct Request {
 struct Transfer {
     sender_key: [u8; 32],
     recipient_key: [u8; 32],
-    value: u64,
+    transfer_value: [u8; 32],
 }
-
 
 ////////////////// Main function //////////////////
 
@@ -58,6 +62,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = AppState {
         db: Arc::new(Connection::open(DB_PATH).await?),
         pubkey: Arc::new(keys::load_public_key()?),
+        server_key: Arc::new(keys::load_server_key()?),
     };
     init_db(&state.db).await?;
     let app = Router::new()
@@ -100,8 +105,47 @@ async fn handle_post(State(state): State<AppState>, Json(payload): Json<Request>
     Ok(StatusCode::OK)
 }
 
-async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Transfer>) {
-    let public_key = state.get_pubkey();
+async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Transfer>) -> Result<StatusCode, StatusCode> {
+    let server_key = state.get_server_key();
+    set_server_key((*server_key).clone());
+
+    let sender_ciphertext = get_ciphertext(payload.sender_key).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let deserialized: CompactCiphertextList = bincode::deserialize(&sender_ciphertext)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let expanded_sender_ciphertext = deserialized.expand()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let sender_value = expanded_sender_ciphertext.get::<FheUint64>(0)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let sender_value = sender_value.unwrap();
+
+    let recipient_ciphertext = get_ciphertext(payload.recipient_key).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let deserialized: CompactCiphertextList = bincode::deserialize(&recipient_ciphertext)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let expanded_recipient_ciphertext = deserialized.expand()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let recipient_value = expanded_recipient_ciphertext.get::<FheUint64>(0)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let recipient_value = recipient_value.unwrap();
+
+    
+
+    // let transfer_value_ciphertext = get_ciphertext(payload.transfer_value).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // let deserialized: CompactCiphertextList = bincode::deserialize(&transfer_value_ciphertext)
+    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // let expanded_transfer_value_ciphertext = deserialized.expand()
+    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // let transfer_value = expanded_transfer_value_ciphertext.get::<FheUint64>(0)
+    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // let transfer_value = transfer_value.unwrap();
+
+    
+    let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let sender_value: u64 = sender_value.decrypt(&client_key);
+    let recipient_value: u64 = recipient_value.decrypt(&client_key);
+    println!("Sender value: {}, recipient value: {}", sender_value, recipient_value);
+    assert!(sender_value == 1000000000);
+    assert!(recipient_value == 1000000001);
+    Ok(StatusCode::OK)
 }
 
 ////////////////// Database helper functions //////////////////
@@ -150,3 +194,16 @@ pub async fn update_ciphertext(key: [u8; 32], new_ciphertext: Vec<u8>) -> Result
 
     Ok(())
 }
+
+pub async fn get_ciphertext(key: [u8; 32]) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    let conn = Connection::open(DB_PATH).await?;
+    
+    conn.call(move |conn| {
+        conn.query_row(
+            "SELECT ciphertext FROM computations WHERE key = ?",
+            [key],
+            |row| row.get(0)
+        )
+    }).await.map_err(Into::into)
+}
+
