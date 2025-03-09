@@ -129,16 +129,18 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
 
     
 
-    // let transfer_value_ciphertext = get_ciphertext(payload.transfer_value).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // let deserialized: CompactCiphertextList = bincode::deserialize(&transfer_value_ciphertext)
-    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // let expanded_transfer_value_ciphertext = deserialized.expand()
-    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // let transfer_value = expanded_transfer_value_ciphertext.get::<FheUint64>(0)
-    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // let transfer_value = transfer_value.unwrap();
+    let transfer_value_ciphertext = get_ciphertext(payload.transfer_value).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let deserialized: CompactCiphertextList = bincode::deserialize(&transfer_value_ciphertext)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let expanded_transfer_value_ciphertext = deserialized.expand()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let transfer_value = expanded_transfer_value_ciphertext.get::<FheUint64>(0)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let transfer_value = transfer_value.unwrap();
 
     
+    //let ebool = 
+
     let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let sender_value: u64 = sender_value.decrypt(&client_key);
     let recipient_value: u64 = recipient_value.decrypt(&client_key);

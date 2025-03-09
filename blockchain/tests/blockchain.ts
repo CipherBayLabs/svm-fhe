@@ -66,7 +66,7 @@ describe("blockchain", () => {
     );
 
     // Deposit 1 SOL
-    const amount = new anchor.BN(1_000_000_005);
+    const amount = new anchor.BN(1_000_000_000);
     const tx = await program.methods
         .deposit(amount)
         .accounts({

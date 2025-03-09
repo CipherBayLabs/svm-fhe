@@ -51,4 +51,3 @@ The project includes multiple test suites:
 - Rust unit tests for encryption logic
 - Integration tests for API endpoints
 - Anchor tests for Solana program
-- TypeScript tests for client functionality
