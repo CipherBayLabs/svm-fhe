@@ -117,8 +117,6 @@ describe("blockchain", () => {
 
 
 
-
-
 /////////////////// helper functions ///////////////////
 
 

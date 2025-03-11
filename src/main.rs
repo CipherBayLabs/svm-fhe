@@ -11,9 +11,12 @@ use tokio_rusqlite::Connection;
 use std::path::Path;
 use std::fs;
 use async_trait::async_trait;
+use tokio::try_join;
 mod keys;
+mod operations;
 
 const DB_PATH: &str = "data/tfhe.db";
+const zero_key: [u8; 32] = [0u8; 32];
 
 #[derive(Clone)]
 struct AppState {
@@ -109,45 +112,29 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
     let server_key = state.get_server_key();
     set_server_key((*server_key).clone());
 
-    let sender_ciphertext = get_ciphertext(payload.sender_key).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let deserialized: CompactCiphertextList = bincode::deserialize(&sender_ciphertext)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let expanded_sender_ciphertext = deserialized.expand()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let sender_value = expanded_sender_ciphertext.get::<FheUint64>(0)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let sender_value = sender_value.unwrap();
+    let (sender_value, recipient_value, transfer_value, zero_value) = try_join!(
+        operations::get_prepared_ciphertext(payload.sender_key),
+        operations::get_prepared_ciphertext(payload.recipient_key),
+        operations::get_prepared_ciphertext(payload.transfer_value),
+        operations::get_prepared_ciphertext(zero_key)
+    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let recipient_ciphertext = get_ciphertext(payload.recipient_key).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let deserialized: CompactCiphertextList = bincode::deserialize(&recipient_ciphertext)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let expanded_recipient_ciphertext = deserialized.expand()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let recipient_value = expanded_recipient_ciphertext.get::<FheUint64>(0)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let recipient_value = recipient_value.unwrap();
+    let condition = sender_value.ge(&transfer_value);
+    let real_amount = condition.if_then_else(&transfer_value, &zero_value);
+    let new_sender_value = sender_value - real_amount;
+    let new_recipient_value = recipient_value + real_amount;
+    //update_ciphertext(payload.sender_key, new_sender_value.serialize()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    update_ciphertext(
+        payload.recipient_key, 
+        new_recipient_value.serialize().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
+    ).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    
-
-    let transfer_value_ciphertext = get_ciphertext(payload.transfer_value).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let deserialized: CompactCiphertextList = bincode::deserialize(&transfer_value_ciphertext)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let expanded_transfer_value_ciphertext = deserialized.expand()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let transfer_value = expanded_transfer_value_ciphertext.get::<FheUint64>(0)
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let transfer_value = transfer_value.unwrap();
-
-    let condition = sender_value.gt(&transfer_value);
-    let real_amount = condition.if_then_else(transfer_value, the value zero);
-
-
-    let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let sender_value: u64 = sender_value.decrypt(&client_key);
-    let recipient_value: u64 = recipient_value.decrypt(&client_key);
-    println!("Sender value: {}, recipient value: {}", sender_value, recipient_value);
-    assert!(sender_value == 1000000000);
-    assert!(recipient_value == 1000000001);
+    // let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // let sender_value: u64 = sender_value.decrypt(&client_key);
+    // let recipient_value: u64 = recipient_value.decrypt(&client_key);
+    // println!("Sender value: {}, recipient value: {}", sender_value, recipient_value);
+    // assert!(sender_value == 1000000000);
+    // assert!(recipient_value == 1000000001);
     Ok(StatusCode::OK)
 }
 
@@ -210,3 +197,17 @@ pub async fn get_ciphertext(key: [u8; 32]) -> Result<Vec<u8>, Box<dyn std::error
     }).await.map_err(Into::into)
 }
 
+pub async fn insert_ciphertext(key: [u8; 32], ciphertext: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
+    let conn = Connection::open(DB_PATH).await?;
+    conn.call(move |conn| {
+        conn.execute(
+            "INSERT OR REPLACE INTO computations (key, ciphertext) VALUES (?1, ?2)",
+            (key, ciphertext),
+        ).map_err(|e| {
+            println!("Insert error: {}", e);
+            e
+        })?;
+        Ok(())
+    }).await?;
+    Ok(())
+}

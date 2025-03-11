@@ -6,7 +6,7 @@ mod keys;
 
 const DB_PATH: &str = "data/tfhe.db";
 
-pub async fn test_first_value() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn test_first_value_zero() -> Result<(), Box<dyn std::error::Error>> {
     println!("Starting database test...");
 
     let client_key = keys::load_client_key()?;
@@ -23,13 +23,12 @@ pub async fn test_first_value() -> Result<(), Box<dyn std::error::Error>> {
     let value: u64 = expanded.get::<FheUint64>(0)?.unwrap().decrypt(&client_key);
     
     println!("Decrypted value: {}", value);
-    assert_eq!(value, 1000000000);
+    assert_eq!(value, 0);
     Ok(())
 }
 
-
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    test_first_value().await
-    
+    test_first_value_zero().await
+
 }

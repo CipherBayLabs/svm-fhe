@@ -13,7 +13,8 @@ const testServer = async () => {
         // Suppress WebSocket errors
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         
-        // Set up program subscription
+        await insertZero();
+
         console.log('Setting up program log listener...');
         const subscriptionId = connection.onLogs(
             PROGRAM_ID,
@@ -114,6 +115,31 @@ const transfer = async (ciphertext: string, sender: string, recipient: string) =
         body: JSON.stringify(requestBody)
     });
     console.log('Rust Server Response:', await response.text());
+}
+
+const insertZero = async () => {
+    const requestBody = {
+        key: new Array(32).fill(0),  // Creates array of 32 zeros
+        value: 0
+    };
+    
+    try {
+        const response = await fetch('http://localhost:3000/post', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(requestBody)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        console.log('Successfully posted value');
+    } catch (error) {
+        console.error('Error posting value:', error);
+    }
 }
 
 testServer(); 
