@@ -111,6 +111,7 @@ async fn handle_post(State(state): State<AppState>, Json(payload): Json<Request>
 async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Transfer>) -> Result<StatusCode, StatusCode> {
     let server_key = state.get_server_key();
     set_server_key((*server_key).clone());
+    println!("handle_transfer hit!!!!!!!!");
 
     let (sender_value, recipient_value, transfer_value, zero_value) = try_join!(
         operations::get_prepared_ciphertext(payload.sender_key),
@@ -119,22 +120,26 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
         operations::get_prepared_ciphertext(zero_key)
     ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let condition = sender_value.ge(&transfer_value);
-    let real_amount = condition.if_then_else(&transfer_value, &zero_value);
-    let new_sender_value = sender_value - real_amount;
-    let new_recipient_value = recipient_value + real_amount;
-    //update_ciphertext(payload.sender_key, new_sender_value.serialize()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    update_ciphertext(
-        payload.recipient_key, 
-        new_recipient_value.serialize().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
-    ).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let sender_plain: u64 = sender_value.decrypt(&client_key);
+    let recipient_plain: &u64 = &recipient_value.decrypt(&client_key);
+    println!("Sender value: {}, recipient value: {}", sender_plain, recipient_plain);
 
-    // let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // let sender_value: u64 = sender_value.decrypt(&client_key);
-    // let recipient_value: u64 = recipient_value.decrypt(&client_key);
-    // println!("Sender value: {}, recipient value: {}", sender_value, recipient_value);
-    // assert!(sender_value == 1000000000);
-    // assert!(recipient_value == 1000000001);
+    //let condition = sender_value.ge(&transfer_value);
+    //let real_amount = condition.if_then_else(&transfer_value, &zero_value);
+    let new_sender_value = &sender_value - &transfer_value;
+    let new_recipient_value = &recipient_value + &transfer_value;
+
+    let serialized_sender = bincode::serialize(&new_sender_value).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    update_ciphertext(payload.sender_key, serialized_sender).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let serialized_recipient = bincode::serialize(&new_recipient_value).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    update_ciphertext(payload.recipient_key, serialized_recipient).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let sender_value: u64 = sender_value.decrypt(&client_key);
+    let recipient_value: &u64 = &recipient_value.decrypt(&client_key);
+    println!("Sender value: {}, recipient value: {}", sender_value, recipient_value);
     Ok(StatusCode::OK)
 }
 
@@ -170,15 +175,12 @@ pub async fn update_ciphertext(key: [u8; 32], new_ciphertext: Vec<u8>) -> Result
         let mut stmt = conn.prepare(
             "UPDATE computations SET ciphertext = ? WHERE key = ?"
         )?;
-        
         let rows_affected = stmt.execute((&new_ciphertext, &key))?;
-        
         if rows_affected == 0 {
             println!("No row found with the given key");
         } else {
             println!("Updated ciphertext for key: {:?}", key);
         }
-        
         Ok(())
     }).await?;
 

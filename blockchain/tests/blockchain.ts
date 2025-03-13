@@ -85,6 +85,8 @@ describe("blockchain", () => {
   it("Can transfer SOL", async () => {
     // Use helper to generate random value
     const value = generateRandomBytes32();
+    const amount = new anchor.BN(500_000_000);
+    await deposit(Number(amount), value);
 
     // Derive PDA using the value as seeds
     const [depositInfoPDA] = PublicKey.findProgramAddressSync(
@@ -137,4 +139,32 @@ function toBytes32(input: number[] | string | Buffer): number[] {
 
 function generateRandomBytes32(): number[] {
   return toBytes32(Array(32).fill(0).map(() => Math.floor(Math.random() * 256)));
+}
+
+const deposit = async (lamports: number, key: string) => {
+  const value = BigInt(lamports);
+  
+  // Convert key string to bytes array
+  const encoder = new TextEncoder();
+  const keyBytes = new Uint8Array(32);
+  const encodedKey = encoder.encode(key);
+  
+  // Copy encoded key into fixed-size array, padding with zeros if needed
+  keyBytes.set(encodedKey.slice(0, 32));  // Take first 32 bytes or pad with zeros
+
+  const requestBody = {
+      value: Number(value),
+      key: Array.from(keyBytes)  // Convert to regular array for JSON
+  };
+
+  console.log('Sending to Rust server:', requestBody);
+
+  const response = await fetch('http://localhost:3000/post', {
+      method: 'POST',
+      headers: {
+          'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody)
+  });
+  console.log('Rust Server Response:', await response.text());
 }

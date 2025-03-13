@@ -52,6 +52,7 @@ const testServer = async () => {
                             console.log('Sender:', sender);
                             console.log('Receiver:', receiver);
                             console.log('Transfer ciphertext:', ciphertext);
+                            transfer(ciphertext, sender, receiver);
                             if (senderDepositLog) {
                                 console.log('Sender deposit value:', senderDepositLog.split("Sender's deposit value:")[1].trim());
                             }
