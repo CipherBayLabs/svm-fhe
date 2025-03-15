@@ -14,7 +14,6 @@ const testServer = async () => {
         process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
         
         await insertZero();
-
         console.log('Setting up program log listener...');
         const subscriptionId = connection.onLogs(
             PROGRAM_ID,
@@ -88,7 +87,6 @@ const deposit = async (lamports: number, key: string) => {
         key: Array.from(keyBytes)  // Convert to regular array for JSON
     };
 
-
     console.log('Sending to Rust server:', requestBody);
 
     const response = await fetch('http://localhost:3000/post', {
@@ -102,20 +100,39 @@ const deposit = async (lamports: number, key: string) => {
 }
 
 const transfer = async (ciphertext: string, sender: string, recipient: string) => {
+    // Convert strings to byte arrays
+    console.log('this is the ciphertext coiming in', ciphertext);
+    const encoder = new TextEncoder();
+    
+    const senderBytes = new Uint8Array(32);
+    senderBytes.set(encoder.encode(sender).slice(0, 32));
+    
+    const recipientBytes = new Uint8Array(32);
+    recipientBytes.set(encoder.encode(recipient).slice(0, 32));
+    
+    // const transferBytes = new Uint8Array(32);
+    // transferBytes.set(encoder.encode(ciphertext).slice(0, 32));
+
+    const transferBytes = new Uint8Array(JSON.parse(ciphertext));
+
     const requestBody = {
-        ciphertext: ciphertext,
-        sender: sender,
-        recipient: recipient
+        sender_key: Array.from(senderBytes),
+        recipient_key: Array.from(recipientBytes),
+        transfer_value: Array.from(transferBytes)
     };
 
+    console.log('=== SENDING TRANSFER REQUEST ===');
+    console.log('Request body:', requestBody);
+    
     const response = await fetch('http://localhost:3000/transfer', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
-        },  
+        },
         body: JSON.stringify(requestBody)
     });
-    console.log('Rust Server Response:', await response.text());
+    console.log('Response status:', response.status);
+    console.log('Response body:', await response.text());
 }
 
 const insertZero = async () => {

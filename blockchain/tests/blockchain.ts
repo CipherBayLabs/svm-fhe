@@ -86,8 +86,11 @@ describe("blockchain", () => {
     // Use helper to generate random value
     const value = generateRandomBytes32();
     const amount = new anchor.BN(500_000_000);
-    await deposit(Number(amount), value);
+    console.log("raw value from helper", value);
 
+    await deposit(Number(amount), value);
+    //console.log('Deposited: into db', {value: value});
+    //await sleep(10000);
     // Derive PDA using the value as seeds
     const [depositInfoPDA] = PublicKey.findProgramAddressSync(
       [provider.publicKey.toBuffer()],
@@ -117,8 +120,6 @@ describe("blockchain", () => {
 
 
 
-
-
 /////////////////// helper functions ///////////////////
 
 
@@ -142,19 +143,23 @@ function generateRandomBytes32(): number[] {
 }
 
 const deposit = async (lamports: number, key: string) => {
+  console.log('Depositing: into db');
+  
   const value = BigInt(lamports);
   
   // Convert key string to bytes array
   const encoder = new TextEncoder();
   const keyBytes = new Uint8Array(32);
+  console.log('key bytes', keyBytes);
   const encodedKey = encoder.encode(key);
   
   // Copy encoded key into fixed-size array, padding with zeros if needed
   keyBytes.set(encodedKey.slice(0, 32));  // Take first 32 bytes or pad with zeros
+  console.log('offset keybytes', keyBytes)
 
   const requestBody = {
       value: Number(value),
-      key: Array.from(keyBytes)  // Convert to regular array for JSON
+      key: key  // Convert to regular array for JSON
   };
 
   console.log('Sending to Rust server:', requestBody);
@@ -168,3 +173,5 @@ const deposit = async (lamports: number, key: string) => {
   });
   console.log('Rust Server Response:', await response.text());
 }
+
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));

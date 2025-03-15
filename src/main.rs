@@ -70,7 +70,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     init_db(&state.db).await?;
     let app = Router::new()
         .route("/post", post(handle_post))
-        .route("/trasnfer", post(handle_transfer))
+        .route("/transfer", post(handle_transfer))
         .with_state(state);
 
     println!("Server starting on http://localhost:3000");
@@ -109,26 +109,65 @@ async fn handle_post(State(state): State<AppState>, Json(payload): Json<Request>
 }
 
 async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Transfer>) -> Result<StatusCode, StatusCode> {
+    println!("=== TRANSFER REQUEST RECEIVED ===");
     let server_key = state.get_server_key();
     set_server_key((*server_key).clone());
     println!("handle_transfer hit!!!!!!!!");
 
-    let (sender_value, recipient_value, transfer_value, zero_value) = try_join!(
-        operations::get_prepared_ciphertext(payload.sender_key),
-        operations::get_prepared_ciphertext(payload.recipient_key),
-        operations::get_prepared_ciphertext(payload.transfer_value),
-        operations::get_prepared_ciphertext(zero_key)
-    ).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    println!("Attempting to fetch sender ciphertext...");
+    println!("Sender key: {:?}", payload.sender_key);
+    println!("Reciver key: {:?}", payload.recipient_key);
+    println!("transfer key: {:?}", payload.transfer_value);
+    let sender_value = operations::get_prepared_ciphertext(payload.sender_key)
+        .await
+        .map_err(|e| {
+            println!("Error fetching sender value: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    println!("Successfully got sender value");
+
+    println!("Attempting to fetch recipient ciphertext...");
+    let recipient_value = operations::get_prepared_ciphertext(payload.recipient_key)
+        .await
+        .map_err(|e| {
+            println!("Error fetching recipient value: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    println!("Successfully got recipient value");
+
+    println!("Attempting to fetch transfer value...");
+    
+    let transfer_value = operations::get_prepared_ciphertext(payload.transfer_value)
+        .await
+        .map_err(|e| {
+            println!("Error fetching transfer value: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    println!("Successfully got transfer value");
+
+    println!("Attempting to fetch zero value...");
+    let zero_value = operations::get_prepared_ciphertext(zero_key)
+        .await
+        .map_err(|e| {
+            println!("Error fetching zero value: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
+    println!("Successfully got zero value");
 
     let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     let sender_plain: u64 = sender_value.decrypt(&client_key);
-    let recipient_plain: &u64 = &recipient_value.decrypt(&client_key);
+    let recipient_plain: u64 = recipient_value.decrypt(&client_key);
     println!("Sender value: {}, recipient value: {}", sender_plain, recipient_plain);
+    println!("transfer value: {:?}", transfer_value);
 
     //let condition = sender_value.ge(&transfer_value);
     //let real_amount = condition.if_then_else(&transfer_value, &zero_value);
     let new_sender_value = &sender_value - &transfer_value;
     let new_recipient_value = &recipient_value + &transfer_value;
+
+    let new_sender_plain: u64 = new_sender_value.decrypt(&client_key);
+    let new_recipient_plain: u64 = new_recipient_value.decrypt(&client_key);
+    println!("New sender value: {}, new recipient value: {}", new_sender_plain, new_recipient_plain);
 
     let serialized_sender = bincode::serialize(&new_sender_value).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     update_ciphertext(payload.sender_key, serialized_sender).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
