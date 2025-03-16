@@ -154,31 +154,30 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
         })?;
     println!("Successfully got zero value");
 
-    let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let sender_plain: u64 = sender_value.decrypt(&client_key);
-    let recipient_plain: u64 = recipient_value.decrypt(&client_key);
-    println!("Sender value: {}, recipient value: {}", sender_plain, recipient_plain);
-    println!("transfer value: {:?}", transfer_value);
+    // let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // let sender_plain: u64 = sender_value.decrypt(&client_key);
+    // let recipient_plain: u64 = recipient_value.decrypt(&client_key);
+    // println!("Sender value: {}, recipient value: {}", sender_plain, recipient_plain);
+    // println!("transfer value: {:?}", transfer_value);
 
     //let condition = sender_value.ge(&transfer_value);
     //let real_amount = condition.if_then_else(&transfer_value, &zero_value);
     let new_sender_value = &sender_value - &transfer_value;
     let new_recipient_value = &recipient_value + &transfer_value;
 
-    let new_sender_plain: u64 = new_sender_value.decrypt(&client_key);
-    let new_recipient_plain: u64 = new_recipient_value.decrypt(&client_key);
-    println!("New sender value: {}, new recipient value: {}", new_sender_plain, new_recipient_plain);
-
+    // let new_sender_plain: u64 = new_sender_value.decrypt(&client_key);
+    // let new_recipient_plain: u64 = new_recipient_value.decrypt(&client_key);
+    // println!("New sender value: {}, new recipient value: {}", new_sender_plain, new_recipient_plain);
     let serialized_sender = bincode::serialize(&new_sender_value).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     update_ciphertext(payload.sender_key, serialized_sender).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let serialized_recipient = bincode::serialize(&new_recipient_value).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    update_ciphertext(payload.recipient_key, serialized_recipient).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // let serialized_recipient = bincode::serialize(&new_recipient_value).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // update_ciphertext(payload.recipient_key, serialized_recipient).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let sender_value: u64 = sender_value.decrypt(&client_key);
-    let recipient_value: &u64 = &recipient_value.decrypt(&client_key);
-    println!("Sender value: {}, recipient value: {}", sender_value, recipient_value);
+    // let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // let sender_value: u64 = sender_value.decrypt(&client_key);
+    // let recipient_value: &u64 = &recipient_value.decrypt(&client_key);
+    // println!("Sender value: {}, recipient value: {}", sender_value, recipient_value);
     Ok(StatusCode::OK)
 }
 
