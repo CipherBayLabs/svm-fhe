@@ -1,5 +1,5 @@
 use tfhe::prelude::*;
-use tfhe::{ set_server_key, CompactCiphertextList, CompactPublicKey, FheUint64, ServerKey };
+use tfhe::{ set_server_key, CompactCiphertextList, CompactPublicKey, FheUint64, ServerKey, CompressedCiphertextListBuilder};
 use std::io::Cursor;
 use axum::{
     routing::{get, post}, Router, Json, extract::State,
@@ -154,22 +154,39 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
         })?;
     println!("Successfully got zero value");
 
-    // let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // let sender_plain: u64 = sender_value.decrypt(&client_key);
-    // let recipient_plain: u64 = recipient_value.decrypt(&client_key);
-    // println!("Sender value: {}, recipient value: {}", sender_plain, recipient_plain);
-    // println!("transfer value: {:?}", transfer_value);
+    let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let sender_plain: u64 = sender_value.decrypt(&client_key);
+    let recipient_plain: u64 = recipient_value.decrypt(&client_key);
+    println!("Sender value: {}, recipient value: {}", sender_plain, recipient_plain);
+    //println!("transfer value: {:?}", transfer_value);
 
     //let condition = sender_value.ge(&transfer_value);
     //let real_amount = condition.if_then_else(&transfer_value, &zero_value);
+    println!("about to start operations");
     let new_sender_value = &sender_value - &transfer_value;
     let new_recipient_value = &recipient_value + &transfer_value;
+    println!("ending operations");
 
-    // let new_sender_plain: u64 = new_sender_value.decrypt(&client_key);
-    // let new_recipient_plain: u64 = new_recipient_value.decrypt(&client_key);
-    // println!("New sender value: {}, new recipient value: {}", new_sender_plain, new_recipient_plain);
-    let serialized_sender = bincode::serialize(&new_sender_value).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    update_ciphertext(payload.sender_key, serialized_sender).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let new_sender_plain: u64 = new_sender_value.decrypt(&client_key);
+    let new_recipient_plain: u64 = new_recipient_value.decrypt(&client_key);
+    println!("New sender value: {}, new recipient value: {}", new_sender_plain, new_recipient_plain);
+
+    let public_key = state.get_pubkey();
+    
+    // // First get the parameters
+    // let params = tfhe::CompactPublicParameters::default();
+    
+    // // Convert FheUint64 to compact form
+    // let compact_sender = new_sender_value.to_compact(&params)
+    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
+    // let serialized_sender = bincode::serialize(&compact_sender)
+    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    
+    // let serialized_sender = bincode::serialize(&sender_list).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // update_ciphertext(payload.sender_key, serialized_sender.clone()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // insert_ciphertext(payload.sender_key, serialized_sender).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     // let serialized_recipient = bincode::serialize(&new_recipient_value).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     // update_ciphertext(payload.recipient_key, serialized_recipient).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
