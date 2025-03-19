@@ -25,3 +25,6 @@ path = "src/keys.rs"
 name = "db_test"
 path = "src/db_test.rs"
 
+[[bin]]
+name = "u64work"
+path = "src/u64work.rs"
