@@ -29,21 +29,21 @@ fn main() -> Result<(), Box<dyn Error>> {
         .map_err(|_| Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Build failed")))?;
 
     println!("Serializing compressed value...");
-    let serialized_data = bincode::serialize(&compressed.unwrap())
+    let serialized_data = bincode::serialize(&compressed)
         .map_err(|_| Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Serialize failed")))?;
 
     println!("Deserializing...");
     let deserialized_compressed: CompressedCiphertextList = bincode::deserialize(&serialized_data)?;
 
-    let expanded = deserialized_compressed.expand()?;
-    let value: FheUint64 = expanded.get(0)?.unwrap();
+    let value: FheUint64 = deserialized_compressed.get(0)?.unwrap();
 
     set_server_key(server_key);
     let result = value + FheUint64::encrypt(5u64, &client_key);
 
     let compressed_result = CompressedCiphertextListBuilder::new()
-        .push(&result)
-        .build();
+        .push(result.clone())
+        .build()
+        .map_err(|_| Box::new(std::io::Error::new(std::io::ErrorKind::Other, "Compress failed")))?;
 
     let final_serialized = bincode::serialize(&compressed_result)?;
 
