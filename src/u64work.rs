@@ -12,16 +12,24 @@ use tfhe::{
     set_server_key,
 };
 use tfhe::prelude::{CiphertextList, FheDecrypt, FheEncrypt};
+use tfhe::shortint::prelude::PARAM_MESSAGE_2_CARRY_2;
+use tfhe::shortint::parameters::COMP_PARAM_MESSAGE_2_CARRY_2;
 
 fn main() -> Result<(), Box<dyn Error>> {
-    let config = ConfigBuilder::default()
-        .use_custom_parameters(tfhe::shortint::parameters::V0_11_PARAM_MESSAGE_2_CARRY_2_COMPACT_PK_KS_PBS_GAUSSIAN_2M64,)
-        .build();
-    let (client_key, server_key) = generate_keys(config);
 
-    let public_key = CompactPublicKey::new(&client_key);
+    println!("Generating keys with compression parameters...");
+    let config = tfhe::ConfigBuilder::with_custom_parameters(PARAM_MESSAGE_2_CARRY_2)
+            .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2)
+            .build();
+
+    let client_key = tfhe::ClientKey::generate(config);
+    let sk = tfhe::ServerKey::new(&client_key);
+
+    set_server_key(sk);
 
     let sender_value = FheUint64::encrypt(100u64, &client_key);
+
+    println!("Encrypted value type: {:?}", std::any::type_name_of_val(&sender_value));
 
     let compressed = CompressedCiphertextListBuilder::new()
         .push(sender_value)
@@ -37,7 +45,6 @@ fn main() -> Result<(), Box<dyn Error>> {
 
     let value: FheUint64 = deserialized_compressed.get(0)?.unwrap();
 
-    set_server_key(server_key);
     let result = value + FheUint64::encrypt(5u64, &client_key);
 
     let compressed_result = CompressedCiphertextListBuilder::new()

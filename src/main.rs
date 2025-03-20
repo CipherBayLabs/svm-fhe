@@ -21,22 +21,17 @@ const zero_key: [u8; 32] = [0u8; 32];
 #[derive(Clone)]
 struct AppState {
     db: Arc<Connection>,
-    pubkey: Arc<CompactPublicKey>,
     server_key: Arc<ServerKey>,
     client_key: Arc<ClientKey>,
 }
 
 #[async_trait]
-trait PubkeyAccess {
-    fn get_pubkey(&self) -> Arc<CompactPublicKey>;
+trait KeyAccess {
     fn get_server_key(&self) -> Arc<ServerKey>;
     fn get_client_key(&self) -> Arc<ClientKey>;
 }
 
-impl PubkeyAccess for AppState {
-    fn get_pubkey(&self) -> Arc<CompactPublicKey> {
-        self.pubkey.clone()
-    }
+impl KeyAccess for AppState {
     fn get_server_key(&self) -> Arc<ServerKey> {
         self.server_key.clone()
     }
@@ -69,7 +64,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     }
     let state = AppState {
         db: Arc::new(Connection::open(DB_PATH).await?),
-        pubkey: Arc::new(keys::load_public_key()?),
         server_key: Arc::new(keys::load_server_key()?),
         client_key: Arc::new(keys::load_client_key()?),
     };
@@ -89,28 +83,25 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 async fn handle_post(State(state): State<AppState>, Json(payload): Json<Request>) -> Result<StatusCode, StatusCode> {
     println!("Received value: {}, key: {:?}", payload.value, payload.key);
-    let public_key = state.get_pubkey();
-    let compact_list = CompactCiphertextList::builder(&public_key)
-        .push(payload.value)
-        .build();
-    let serialized_list = bincode::serialize(&compact_list)
-    .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    let conn = Connection::open(DB_PATH)
+    let client_key = state.get_client_key();
+    let server_key = state.get_server_key();
+    set_server_key((*server_key).clone());
+    let value = FheUint64::encrypt(payload.value, &*client_key);
+    println!("Encrypted value type: {:?}", std::any::type_name_of_val(&value));
+    let compressed = CompressedCiphertextListBuilder::new()
+        .push(value)
+        .build()
+        .map_err(|e| {
+            println!("Compression error: {:?}", e);
+            StatusCode::INTERNAL_SERVER_ERROR
+    });
+    println!("Serializing compressed value...");
+    let serialized_data = bincode::serialize(&compressed.unwrap())
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    insert_ciphertext(payload.key, serialized_data)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    conn.call(move |conn| {
-        conn.execute(
-            "INSERT OR REPLACE INTO computations (key, ciphertext) VALUES (?1, ?2)",
-            (payload.key, serialized_list),
-        ).map_err(|e| {
-            println!("Insert error: {}", e);
-            e
-        })?;
-        Ok(())
-    }).await;
-    println!("Successfully saved to database!");
+    println!("hit the end of post");
     Ok(StatusCode::OK)
 }
 
@@ -173,34 +164,27 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
     let new_recipient_value = &recipient_value + &transfer_value;
     println!("ending operations");
 
-    let new_sender_plain: u64 = new_sender_value.decrypt(&client_key);
-    let new_recipient_plain: u64 = new_recipient_value.decrypt(&client_key);
-    println!("New sender value: {}, new recipient value: {}", new_sender_plain, new_recipient_plain);
+    // let new_sender_plain: u64 = new_sender_value.decrypt(&client_key);
+    // let new_recipient_plain: u64 = new_recipient_value.decrypt(&client_key);
+    // println!("New sender value: {}, new recipient value: {}", new_sender_plain, new_recipient_plain);
 
-    let public_key = state.get_pubkey();
-    
-    // // First get the parameters
-    // let params = tfhe::CompactPublicParameters::default();
-    
-    // // Convert FheUint64 to compact form
-    // let compact_sender = new_sender_value.to_compact(&params)
-    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    // let serialized_sender = bincode::serialize(&compact_sender)
-    //     .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let compressed_sender = CompressedCiphertextListBuilder::new()
+        .push(new_sender_value.clone())
+        .build()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+    let serialized_sender = bincode::serialize(&compressed_sender)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    update_ciphertext(payload.sender_key, serialized_sender.clone()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    
-    // let serialized_sender = bincode::serialize(&sender_list).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // update_ciphertext(payload.sender_key, serialized_sender.clone()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // insert_ciphertext(payload.sender_key, serialized_sender).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // let serialized_recipient = bincode::serialize(&new_recipient_value).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // update_ciphertext(payload.recipient_key, serialized_recipient).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-
-    // let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // let sender_value: u64 = sender_value.decrypt(&client_key);
-    // let recipient_value: &u64 = &recipient_value.decrypt(&client_key);
-    // println!("Sender value: {}, recipient value: {}", sender_value, recipient_value);
+    let compressed_recipient = CompressedCiphertextListBuilder::new()
+        .push(new_recipient_value.clone())
+        .build()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+    let serialized_recipient = bincode::serialize(&compressed_recipient)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    update_ciphertext(payload.recipient_key, serialized_recipient.clone()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(StatusCode::OK)
 }
 
@@ -262,6 +246,7 @@ pub async fn get_ciphertext(key: [u8; 32]) -> Result<Vec<u8>, Box<dyn std::error
 
 pub async fn insert_ciphertext(key: [u8; 32], ciphertext: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
     let conn = Connection::open(DB_PATH).await?;
+    println!("inserting ciphertext via helper");
     conn.call(move |conn| {
         conn.execute(
             "INSERT OR REPLACE INTO computations (key, ciphertext) VALUES (?1, ?2)",

@@ -1,23 +1,19 @@
 use axum::http::StatusCode;
-use tfhe::{FheUint64, CompactCiphertextList};
+use tfhe::{FheUint64, CompressedCiphertextList};
 use tfhe::prelude::*;
 const DB_PATH: &str = "data/tfhe.db";
 use tokio_rusqlite::Connection;
 
 
 pub async fn get_prepared_ciphertext(key: [u8; 32]) -> Result<FheUint64, StatusCode> {
-    
-    let ciphertext = get_ciphertext(key)
+    let serialized_data = get_ciphertext(key)
         .await
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    let deserialized: CompactCiphertextList = bincode::deserialize(&ciphertext)
+
+    let deserialized_compressed: CompressedCiphertextList = bincode::deserialize(&serialized_data)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
-    let expanded = deserialized.expand()
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    
-    expanded.get::<FheUint64>(0)
+    deserialized_compressed.get(0)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?
         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)
 }
