@@ -55,6 +55,19 @@ struct Transfer {
     transfer_value: [u8; 32],
 }
 
+#[derive(Deserialize)]
+struct Withdraw {
+    key: [u8; 32],
+    value: [u8;32]
+}
+
+//////////////////////// Response Structs ///////////////////////////
+
+#[derive(Serialize)]
+struct ViewResponse {
+    result: u64,
+}
+
 ////////////////// Main function //////////////////
 
 #[tokio::main]
@@ -71,6 +84,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let app = Router::new()
         .route("/post", post(handle_post))
         .route("/transfer", post(handle_transfer))
+        .route("/decrypt", post(handle_view))
         .with_state(state);
 
     println!("Server starting on http://localhost:3000");
@@ -151,17 +165,17 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
         })?;
     println!("Successfully got zero value");
 
-    let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    let sender_plain: u64 = sender_value.decrypt(&client_key);
-    let recipient_plain: u64 = recipient_value.decrypt(&client_key);
-    println!("Sender value: {}, recipient value: {}", sender_plain, recipient_plain);
+    // let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    // let sender_plain: u64 = sender_value.decrypt(&client_key);
+    // let recipient_plain: u64 = recipient_value.decrypt(&client_key);
+    // println!("Sender value: {}, recipient value: {}", sender_plain, recipient_plain);
     //println!("transfer value: {:?}", transfer_value);
 
-    //let condition = sender_value.ge(&transfer_value);
-    //let real_amount = condition.if_then_else(&transfer_value, &zero_value);
     println!("about to start operations");
-    let new_sender_value = &sender_value - &transfer_value;
-    let new_recipient_value = &recipient_value + &transfer_value;
+    let condition = sender_value.ge(&transfer_value);
+    let real_amount = condition.if_then_else(&transfer_value, &zero_value);
+    let new_sender_value = &sender_value - &real_amount;
+    let new_recipient_value = &recipient_value + &real_amount;
     println!("ending operations");
 
     // let new_sender_plain: u64 = new_sender_value.decrypt(&client_key);
@@ -187,6 +201,34 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
     update_ciphertext(payload.recipient_key, serialized_recipient.clone()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(StatusCode::OK)
 }
+
+async fn handle_view(
+    State(state): State<AppState>, 
+    Json(payload): Json<Request>
+) -> Result<Json<ViewResponse>, StatusCode> {
+    let client_key = state.get_client_key();
+    let server_key = state.get_server_key();
+    set_server_key((*server_key).clone());
+
+    let value = operations::get_prepared_ciphertext(payload.key)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let decrypted: u64 = value.decrypt(&client_key);
+    Ok(Json(ViewResponse { result: decrypted }))
+}
+
+async fn handle_withdraw(State(state): State<AppState>, 
+Json(payload): Json<Request>
+) -> Result<Json<ViewResponse>, StatusCode> {
+    let client_key = state.get_client_key();
+    let server_key = state.get_server_key();
+    set_server_key((*server_key).clone());
+    // reads the values from teh payload
+    // checks to make sure the balance > transfer request
+    // 
+}
+
 
 ////////////////// Database helper functions //////////////////
 
@@ -214,7 +256,6 @@ async fn init_db(conn: &Connection) -> Result<(), Box<dyn std::error::Error>> {
 
 pub async fn update_ciphertext(key: [u8; 32], new_ciphertext: Vec<u8>) -> Result<(), Box<dyn std::error::Error>> {
     let conn = Connection::open("data/tfhe.db").await?;
-    
     conn.call(move |conn| {
         // First find the row with the matching key
         let mut stmt = conn.prepare(
@@ -228,7 +269,6 @@ pub async fn update_ciphertext(key: [u8; 32], new_ciphertext: Vec<u8>) -> Result
         }
         Ok(())
     }).await?;
-
     Ok(())
 }
 

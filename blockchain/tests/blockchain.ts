@@ -85,7 +85,7 @@ describe("blockchain", () => {
   it("Can transfer SOL", async () => {
     // Use helper to generate random value
     const value = generateRandomBytes32();
-    const amount = new anchor.BN(500_000_000);
+    const amount = new anchor.BN(1600_000_000);
     console.log("raw value from helper", value);
 
     await deposit(Number(amount), value);

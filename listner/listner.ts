@@ -78,8 +78,6 @@ const deposit = async (lamports: number, key: string) => {
     const encoder = new TextEncoder();
     const keyBytes = new Uint8Array(32);
     const encodedKey = encoder.encode(key);
-    
-    // Copy encoded key into fixed-size array, padding with zeros if needed
     keyBytes.set(encodedKey.slice(0, 32));  // Take first 32 bytes or pad with zeros
 
     const requestBody = {
@@ -110,9 +108,6 @@ const transfer = async (ciphertext: string, sender: string, recipient: string) =
     const recipientBytes = new Uint8Array(32);
     recipientBytes.set(encoder.encode(recipient).slice(0, 32));
     
-    // const transferBytes = new Uint8Array(32);
-    // transferBytes.set(encoder.encode(ciphertext).slice(0, 32));
-
     const transferBytes = new Uint8Array(JSON.parse(ciphertext));
 
     const requestBody = {
@@ -159,5 +154,7 @@ const insertZero = async () => {
         console.error('Error posting value:', error);
     }
 }
+
+
 
 testServer(); 

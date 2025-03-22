@@ -27,7 +27,7 @@ pub mod blockchain {
         for i in 8..32 {
             value[i] = ((clock.slot + i as u64) % 256) as u8;
         }
-
+        
         ctx.accounts.deposit_info.owner = ctx.accounts.user.key();
         ctx.accounts.deposit_info.value = value;
         
@@ -43,6 +43,11 @@ pub mod blockchain {
         msg!("Recipient's deposit value: {:?}", ctx.accounts.recipient_deposit.value);
         msg!("Transferring {:?} from {:?} to {:?}", amount, ctx.accounts.user.key(), ctx.accounts.recipient.key());
         Ok(())
+    }
+
+    pub fn view_balance(ctx: Context<ViewBalance>) -> Result<[u8; 32]> {
+        // Simply return the stored value bytes
+        Ok(ctx.accounts.deposit_info.value)
     }
 
     pub fn emit_bytes(ctx: Context<EmitBytes>, value: [u8; 32]) -> Result<()> {
@@ -112,3 +117,13 @@ pub struct Transfer<'info> {
 
 #[derive(Accounts)]
 pub struct EmitBytes {}
+
+#[derive(Accounts)]
+pub struct ViewBalance<'info> {
+    #[account(
+        seeds = [user.key().as_ref()],
+        bump,
+    )]
+    pub deposit_info: Account<'info, DepositInfo>,
+    pub user: Signer<'info>,
+}
