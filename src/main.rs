@@ -129,47 +129,18 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
     println!("Sender key: {:?}", payload.sender_key);
     println!("Reciver key: {:?}", payload.recipient_key);
     println!("transfer key: {:?}", payload.transfer_value);
-    let sender_value = operations::get_prepared_ciphertext(payload.sender_key)
-        .await
-        .map_err(|e| {
-            println!("Error fetching sender value: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-    println!("Successfully got sender value");
+    println!("Fetching all required values...");
+    let (sender_value, recipient_value, transfer_value, zero_value) = try_join!(
+        operations::get_prepared_ciphertext(payload.sender_key),
+        operations::get_prepared_ciphertext(payload.recipient_key),
+        operations::get_prepared_ciphertext(payload.transfer_value),
+        operations::get_prepared_ciphertext(zero_key)
+    ).map_err(|e| {
+        println!("Error fetching values: {:?}", e);
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
 
-    println!("Attempting to fetch recipient ciphertext...");
-    let recipient_value = operations::get_prepared_ciphertext(payload.recipient_key)
-        .await
-        .map_err(|e| {
-            println!("Error fetching recipient value: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-    println!("Successfully got recipient value");
-
-    println!("Attempting to fetch transfer value...");
-    
-    let transfer_value = operations::get_prepared_ciphertext(payload.transfer_value)
-        .await
-        .map_err(|e| {
-            println!("Error fetching transfer value: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-    println!("Successfully got transfer value");
-
-    println!("Attempting to fetch zero value...");
-    let zero_value = operations::get_prepared_ciphertext(zero_key)
-        .await
-        .map_err(|e| {
-            println!("Error fetching zero value: {:?}", e);
-            StatusCode::INTERNAL_SERVER_ERROR
-        })?;
-    println!("Successfully got zero value");
-
-    // let client_key = keys::load_client_key().map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    // let sender_plain: u64 = sender_value.decrypt(&client_key);
-    // let recipient_plain: u64 = recipient_value.decrypt(&client_key);
-    // println!("Sender value: {}, recipient value: {}", sender_plain, recipient_plain);
-    //println!("transfer value: {:?}", transfer_value);
+    println!("Successfully fetched all values");
 
     println!("about to start operations");
     let condition = sender_value.ge(&transfer_value);
@@ -178,10 +149,6 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
     let new_recipient_value = &recipient_value + &real_amount;
     println!("ending operations");
 
-    // let new_sender_plain: u64 = new_sender_value.decrypt(&client_key);
-    // let new_recipient_plain: u64 = new_recipient_value.decrypt(&client_key);
-    // println!("New sender value: {}, new recipient value: {}", new_sender_plain, new_recipient_plain);
-
     let compressed_sender = CompressedCiphertextListBuilder::new()
         .push(new_sender_value.clone())
         .build()
@@ -189,6 +156,7 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
         
     let serialized_sender = bincode::serialize(&compressed_sender)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    
     update_ciphertext(payload.sender_key, serialized_sender.clone()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
     let compressed_recipient = CompressedCiphertextListBuilder::new()
@@ -198,6 +166,7 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
         
     let serialized_recipient = bincode::serialize(&compressed_recipient)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
     update_ciphertext(payload.recipient_key, serialized_recipient.clone()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     Ok(StatusCode::OK)
 }
@@ -219,16 +188,37 @@ async fn handle_view(
 }
 
 async fn handle_withdraw(State(state): State<AppState>, 
-Json(payload): Json<Request>
+Json(payload): Json<Withdraw>
 ) -> Result<Json<ViewResponse>, StatusCode> {
     let client_key = state.get_client_key();
     let server_key = state.get_server_key();
     set_server_key((*server_key).clone());
-    // reads the values from teh payload
-    // checks to make sure the balance > transfer request
-    // 
-}
+    
+    let balance = operations::get_prepared_ciphertext(payload.key)
+        .await?;
+    let transfer = operations::get_prepared_ciphertext(payload.value)
+        .await?;
+    let zero_value = operations::get_prepared_ciphertext(zero_key).await?;
+        
+    let condition = balance.ge(&transfer);
+    let real_amount = condition.if_then_else(&transfer, &zero_value);
+    let new_balance = balance - real_amount;
 
+    let compressed = CompressedCiphertextListBuilder::new()
+        .push(new_balance.clone())
+        .build()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        
+    let serialized_data = bincode::serialize(&compressed)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    update_ciphertext(payload.key, serialized_data)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    let decrypted: u64 = new_balance.decrypt(&client_key);
+    Ok(Json(ViewResponse { result: decrypted }))
+}
 
 ////////////////// Database helper functions //////////////////
 
