@@ -19,8 +19,19 @@ describe("Secondary Test Suite", () => {
     console.log("Deposit Info PDA:", depositInfoPDA.toString());
 
     const accountInfo = await program.account.depositInfo.fetch(depositInfoPDA);
-    console.log("Stored value ([u8; 32]):", accountInfo.value);
-    console.log("Value length:", accountInfo.value.length);  // Should be 32
-    console.log("Owner of this deposit:", accountInfo.owner.toString());  // Should match provider.publicKey
+    
+    // Convert to proper byte array and format
+    const valueArray = Array.from(accountInfo.value);
+    console.log("Stored value ([u8; 32]):", 
+      valueArray.map(b => b.toString()).join(', ')
+    );
+    
+    // Also show hex format
+    console.log("Value (hex):", 
+      Buffer.from(valueArray).toString('hex')
+    );
+    
+    console.log("Value length:", valueArray.length);
+    console.log("Owner of this deposit:", accountInfo.owner.toString());
   });
 });

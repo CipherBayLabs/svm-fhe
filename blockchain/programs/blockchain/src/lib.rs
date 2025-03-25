@@ -21,11 +21,21 @@ pub mod blockchain {
         );
         anchor_lang::system_program::transfer(cpi_context, amount)?;
 
+        // Get slot and recent blockhash for entropy
         let clock = Clock::get()?;
         let mut value = [0u8; 32];
-        value[0..8].copy_from_slice(&clock.slot.to_le_bytes());
-        for i in 8..32 {
-            value[i] = ((clock.slot + i as u64) % 256) as u8;
+        
+        // Use more sources of entropy
+        let timestamp = clock.unix_timestamp;
+        let slot = clock.slot;
+        
+        // Mix values throughout the array
+        for i in 0..32 {
+            let mixed = (
+                (slot.wrapping_mul(1337 + i as u64)) ^
+                (timestamp as u64).wrapping_mul(7919 + i as u64)
+            ) as u8;
+            value[i] = mixed;
         }
         
         ctx.accounts.deposit_info.owner = ctx.accounts.user.key();
