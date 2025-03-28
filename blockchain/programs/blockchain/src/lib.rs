@@ -72,7 +72,7 @@ pub struct Initialize {}
 #[account]
 pub struct DepositInfo {
     owner: Pubkey,    // 32 bytes
-    value: [u8; 32],  // 32 bytes instead of u64
+    value: [u8; 32],  
 }
 
 #[derive(Accounts)]

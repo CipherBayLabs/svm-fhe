@@ -135,7 +135,6 @@ const insertZero = async () => {
         key: new Array(32).fill(0),  // Creates array of 32 zeros
         value: 0
     };
-    
     try {
         const response = await fetch('http://localhost:3000/post', {
             method: 'POST',
