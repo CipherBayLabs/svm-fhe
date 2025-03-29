@@ -61,6 +61,11 @@ struct Withdraw {
     value: [u8;32]
 }
 
+#[derive(Deserialize)]
+struct Decrypt {
+    key: [u8; 32],
+}
+
 //////////////////////// Response Structs ///////////////////////////
 
 #[derive(Serialize)]
@@ -85,6 +90,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/post", post(handle_post))
         .route("/transfer", post(handle_transfer))
         .route("/decrypt", post(handle_view))
+        .route("/withdraw", post(handle_withdraw))
         .with_state(state);
 
     println!("Server starting on http://localhost:3000");
@@ -173,17 +179,27 @@ async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<Tran
 
 async fn handle_view(
     State(state): State<AppState>, 
-    Json(payload): Json<Request>
+    Json(payload): Json<Decrypt>
 ) -> Result<Json<ViewResponse>, StatusCode> {
+    println!("Received key bytes: {:?}", payload.key);  // Debug incoming data
+    
     let client_key = state.get_client_key();
     let server_key = state.get_server_key();
     set_server_key((*server_key).clone());
 
+    // Add error logging
     let value = operations::get_prepared_ciphertext(payload.key)
         .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+        .map_err(|e| {
+            println!("Error preparing ciphertext: {:?}", e);  // Log the actual error
+            StatusCode::INTERNAL_SERVER_ERROR
+        })?;
 
+    println!("Successfully prepared ciphertext");  // Confirm success
+    
     let decrypted: u64 = value.decrypt(&client_key);
+    println!("Decrypted value: {}", decrypted);  // Log decrypted value
+    
     Ok(Json(ViewResponse { result: decrypted }))
 }
 

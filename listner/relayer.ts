@@ -7,7 +7,7 @@ async function startListener() {
     // Create connection
     const connection = new Connection('http://localhost:8899', {
         wsEndpoint: 'ws://localhost:8900',
-        commitment: 'confirmed'
+        commitment: 'processed'
     });
     await insertZero();
     console.log('Starting listener...');
