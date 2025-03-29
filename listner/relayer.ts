@@ -1,5 +1,5 @@
 import { Connection, PublicKey } from '@solana/web3.js';
-import { insertZero, encrypt } from './fhe';
+import { insertZero, encrypt, transfer } from './fhe';
 
 const PROGRAM_ID = new PublicKey("GEFoAn6CNJiG9dq8xgm24fjzjip7n5GcH5AyqVC6QzdD");
 
@@ -66,6 +66,8 @@ async function startListener() {
                     const transferArray = transferLog.split("Transferring ")[1].split(" from")[0].trim()
                         .replace(/[\[\]]/g, '');
                     const transferCiphertext = JSON.parse(`[${transferArray}]`);
+
+                    await transfer(senderCiphertext, recipientCiphertext, transferCiphertext);
                     
                     console.log('Sender Ciphertext:', senderCiphertext);
                     console.log('Recipient Ciphertext:', recipientCiphertext);

@@ -25,13 +25,11 @@ describe("Secondary Test Suite", () => {
     console.log("Stored value ([u8; 32]):", 
       valueArray.map(b => b.toString()).join(', ')
     );
+
     
-    // Also show hex format
-    console.log("Value (hex):", 
-      Buffer.from(valueArray).toString('hex')
-    );
     
-    console.log("Value length:", valueArray.length);
     console.log("Owner of this deposit:", accountInfo.owner.toString());
   });
 });
+
+

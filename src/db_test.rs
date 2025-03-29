@@ -41,20 +41,21 @@ pub async fn test_last_values() -> Result<(), Box<dyn std::error::Error>> {
     
     let conn = Connection::open(DB_PATH).await?;
     
-    let blobs = conn.call(|conn| {
-        let mut stmt = conn.prepare("SELECT ciphertext FROM computations ORDER BY ROWID DESC LIMIT 3")?;
-        let blobs: Vec<Vec<u8>> = stmt.query_map([], |row| row.get(0))?
-            .collect::<Result<Vec<_>, _>>()?;
-        Ok(blobs)
+    let rows = conn.call(|conn| {
+        let mut stmt = conn.prepare("SELECT key, ciphertext FROM computations ORDER BY ROWID DESC LIMIT 3")?;
+        let rows: Vec<(Vec<u8>, Vec<u8>)> = stmt.query_map([], |row| {
+            Ok((row.get(0)?, row.get(1)?))
+        })?.collect::<Result<Vec<_>, _>>()?;
+        Ok(rows)
     }).await?;
 
-    println!("Retrieved {} values", blobs.len());
+    println!("Retrieved {} rows", rows.len());
     
-    for (i, blob) in blobs.iter().enumerate() {
+    for (i, (key, blob)) in rows.iter().enumerate() {
         let compressed: CompressedCiphertextList = bincode::deserialize(&blob)?;
         let value: FheUint64 = compressed.get(0)?.unwrap();
         let decrypted: u64 = value.decrypt(&client_key);
-        println!("Value {}: {}", i + 1, decrypted);
+        println!("Row {}: Key = {:?}, Value = {}", i + 1, key, decrypted);
     }
 
     Ok(())
