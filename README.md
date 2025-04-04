@@ -1,6 +1,6 @@
 # TFHE Server with Solana Integration
 
-The idea here is to create an off-chain server that handles FHE operations symbolically on the SVM. Essentially when an on-chain action is needed, an event will be emited and orginazed via a TS server where it then will be forwarded to the Rust backend where the encryption, FHE opertaions and decryption requests are handled. The Goal is to build a generalized FHE coprocessor that is native to the SVM, ideally including a wide range of operations, different FHE schemes and threshold decryption. Next steps include on-chain verification. 
+The idea here is to create an off-chain server that handles FHE operations symbolically on the SVM. Essentially when an on-chain action is needed, an event will be emited and orginazed via a TS server where it then will be forwarded to the Rust backend where the encryption, FHE operations and decryption requests are handled. The Goal is to build a generalized FHE coprocessor that is native to the SVM, ideally including a wide range of operations, different FHE schemes and threshold decryption. Next steps include on-chain verification. 
 
 ## 🔍 Overview
 
