@@ -24,7 +24,7 @@ This repository demonstrates a multi-component system for handling homomorphic e
 
 ## Architecture 
 
-Here is a sample walk through of how the depopsit flow works. First the user will call the deposit function to deposit a certain amount of lamports into the program. This will create a mapping from the user's address to a ciphertext that represents their lamport value. (down the road this can also be used for SPL tokens such as USDC). Next the TS Listner/relayer will pick up the event and forward the request to the Rust server. The Rust server will then use the FHE public key to encrypt the corresponding ciphertext and save it to the database. 
+Here is a sample walk through of how the deposit flow works. First the user will call the deposit function to deposit a certain amount of lamports into the program. This will create a mapping from the user's address to a ciphertext that represents their lamport value. (down the road this can also be used for SPL tokens such as USDC). Next the TS Listner/relayer will pick up the event and forward the request to the Rust server. The Rust server will then use the FHE public key to encrypt the corresponding ciphertext and save it to the database. 
 <div align="center">
   <img src="images/naughty.png" alt="Architecture Diagram" width="800"/>
 </div>
