@@ -31,7 +31,7 @@ Here is a sample walk through of how the deposit flow works. First the user will
 
 ---
 
-The following is a more complex example, since we need to request a valid ciphertext from the server before we are able to perform the transfer. This flow will be similar for any function that requires a ciphertext as an input. Down the road the idea will be to use a zero knowledge proof to verify the ciphertext is valid without revealing any information about the plaintext, however for now we will mock this via a post request to the server. Say a user wants to transfer 1 of their deposited Sol.. they will first neede to request a ciphertext of the encrypted lamport value. From there, they will be given a pointer that they will use as an input to the transfer function (this is abstracted from the user). From there the flow is similar to the deposit example above. 
+The following is a more complex example, since we need to request a valid ciphertext from the server before we are able to perform the transfer. This flow will be similar for any function that requires a ciphertext as an input. Down the road the idea will be to use a zero knowledge proof to verify the ciphertext is valid without revealing any information about the plaintext, however for now we will mock this via a post request to the server. Say a user wants to transfer 1 of their deposited Sol.. they will first need to request a ciphertext of the encrypted lamport value. From there, they will be given a pointer that they will use as an input to the transfer function (this is abstracted from the user). From there the flow is similar to the deposit example above. 
 
 <div align="center">
   <img src="images/transfer.png" alt="Architecture Diagram" width="800"/>
