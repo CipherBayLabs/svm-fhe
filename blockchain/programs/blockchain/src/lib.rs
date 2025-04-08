@@ -1,5 +1,6 @@
 use anchor_lang::prelude::*;
-use solana_program::hash::Hash;
+use anchor_lang::solana_program::hash::Hash;
+//use anchor_lang::solana_program::hash;
 
 declare_id!("GEFoAn6CNJiG9dq8xgm24fjzjip7n5GcH5AyqVC6QzdD");
 
@@ -17,6 +18,14 @@ fn generate_ciphertext(clock: &Clock) -> [u8; 32] {
         value[i] = mixed;
     }
     value
+}
+
+// Custom function to generate unique hash
+fn generate_unique_hash() -> [u8; 32] {
+    let clock = Clock::get().unwrap();
+    let mut hasher = anchor_lang::solana_program::hash::Hasher::default();
+    hasher.hash(&clock.slot.to_le_bytes());
+    hasher.result().to_bytes()
 }
 
 #[program]
@@ -55,7 +64,7 @@ pub mod blockchain {
         msg!("FHE Add - LHS: {:?}", lhs);
         msg!("FHE Add - RHS: {:?}", rhs);
         
-        let result_value = Hash::new_unique().to_bytes();
+        let result_value = generate_unique_hash();
         
         ctx.accounts.result_info.owner = ctx.accounts.user.key();
         ctx.accounts.result_info.value = result_value;
@@ -92,28 +101,25 @@ pub mod blockchain {
         Ok(())
     }
 
-    pub fn withdraw(ctx: Context<Withdraw>, amount: u64, recipient: Pubkey) -> Result<()> {
-        // Check owner
-        require!(
-            ctx.accounts.owner.key() == ctx.accounts.program_data.upgrade_authority_address.unwrap(),
-            ProgramError::IncorrectProgramId
-        );
+    pub fn withdraw(ctx: Context<Withdraw>, amount: u64) -> Result<()> {
+        let vault_seeds = &[
+            b"vault".as_ref(),
+            &[ctx.bumps.vault]
+        ];
 
-        let recipient_starting_lamports = ctx.accounts.recipient.lamports();
-        **ctx.accounts.recipient.lamports.borrow_mut() = recipient_starting_lamports
-            .checked_add(amount)
-            .unwrap();
+        anchor_lang::system_program::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.system_program.to_account_info(),
+                anchor_lang::system_program::Transfer {
+                    from: ctx.accounts.vault.to_account_info(),
+                    to: ctx.accounts.recipient.to_account_info(),
+                },
+                &[vault_seeds]
+            ),
+            amount
+        )?;
 
-        let vault_lamports = ctx.accounts.vault.lamports();
-        **ctx.accounts.vault.lamports.borrow_mut() = vault_lamports
-            .checked_sub(amount)
-            .unwrap();
-
-        msg!("Owner {} withdrew {} lamports to {}", 
-            ctx.accounts.owner.key(),
-            amount,
-            recipient
-        );
+        msg!("Withdrew {} lamports", amount);
         Ok(())
     }
 }
@@ -208,15 +214,23 @@ pub struct FHEOperation<'info> {
 
 #[derive(Accounts)]
 pub struct Withdraw<'info> {
-    #[account(mut)]
-    pub vault: SystemAccount<'info>,
+    /// CHECK: This is the PDA vault that holds SOL, validated by seeds constraint
+    #[account(
+        mut,
+        seeds = [b"vault"],
+        bump
+    )]
+    pub vault: UncheckedAccount<'info>,
     
-    #[account(mut)]
-    pub owner: Signer<'info>,
+    #[account(
+        constraint = authority.key() == program_data.upgrade_authority_address.unwrap()
+    )]
+    pub authority: Signer<'info>,
 
+    /// CHECK: This is the recipient account that will receive the withdrawal
     #[account(mut)]
-    /// CHECK: Can be any account, owner decides
     pub recipient: UncheckedAccount<'info>,
     
     pub program_data: Account<'info, ProgramData>,
+    pub system_program: Program<'info, System>,
 }
