@@ -72,7 +72,7 @@ describe("Secondary Test Suite", () => {
     console.log(`Initial recipient balance: ${recipientBalance} lamports`);
 
     try {
-        const amount = new anchor.BN(100000); // 0.0001 SOL
+        const amount = new anchor.BN(200000); // 0.0002 SOL
         
         await program.methods
           .withdraw(amount)
