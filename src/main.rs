@@ -16,6 +16,7 @@ mod keys;
 mod types;
 mod operations;
 mod handlers;
+mod cache;
 use handlers::{handle_post, handle_transfer, handle_view, handle_withdraw};
 use crate::operations::{init_db, update_ciphertext, get_ciphertext, insert_ciphertext};
 
