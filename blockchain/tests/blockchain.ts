@@ -11,12 +11,6 @@ describe("blockchain", () => {
   const newUser = anchor.web3.Keypair.generate();
   const provider = anchor.getProvider();
 
-  // it("Is initialized!", async () => {
-  //   // Add your test here.
-  //   const tx = await program.methods.initialize().rpc();
-  //   console.log("Your transaction signature", tx);
-  // });
-
   it("Can deposit SOL", async () => {
     const amount = new anchor.BN(1_000_000_000);
     
