@@ -100,7 +100,6 @@ describe("blockchain", () => {
             depositInfo: depositInfoPDA,
             user: provider.publicKey,
             recipient: recipient,
-            systemProgram: anchor.web3.SystemProgram.programId,
         })
         .rpc();
 

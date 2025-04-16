@@ -175,7 +175,6 @@ pub struct Transfer<'info> {
     /// CHECK: This is just for logging the recipient's address
     pub recipient: UncheckedAccount<'info>,
     
-    pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
