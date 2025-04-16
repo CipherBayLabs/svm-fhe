@@ -7,6 +7,8 @@ skip-lint = false
 
 [programs.localnet]
 blockchain = "GEFoAn6CNJiG9dq8xgm24fjzjip7n5GcH5AyqVC6QzdD"
+# operations = "Fg6PaFpoGXkYsidMpWTK6W2BeZ7FEfcYkg476zPFsLnS"
+
 
 [registry]
 url = "https://api.apr.dev"

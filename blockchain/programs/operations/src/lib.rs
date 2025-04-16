@@ -29,15 +29,17 @@ pub struct TestOperation<'info> {
     #[account(mut)]
     pub user: Signer<'info>,
     
+    /// CHECK: This is the blockchain program
+    pub blockchain_program: Program<'info, Blockchain>,
+    
     #[account(
-        init_if_needed,
+        init,
         payer = user,
         space = 8 + 32 + 32,
-        seeds = [user.key().as_ref()],
+        seeds = [b"result", user.key().as_ref()],
         bump
     )]
-    pub result_info: Account<'info, blockchain::ResultInfo>,
+    pub result_info: Account<'info, blockchain::DepositInfo>,  // Using DepositInfo from blockchain
     
-    pub blockchain_program: Program<'info, Blockchain>,
     pub system_program: Program<'info, System>,
 }

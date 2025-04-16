@@ -32,10 +32,10 @@ fn generate_unique_hash() -> [u8; 32] {
 pub mod blockchain {
     use super::*;
 
-    pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
-        msg!("Greetings from: {:?}", ctx.program_id);
-        Ok(())
-    }
+    // pub fn initialize(ctx: Context<Initialize>) -> Result<()> {
+    //     msg!("Greetings from: {:?}", ctx.program_id);
+    //     Ok(())
+    // }
 
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
         let cpi_context = CpiContext::new(
@@ -86,11 +86,6 @@ pub mod blockchain {
         Ok(ctx.accounts.deposit_info.value) // check for signature
     }
 
-    pub fn emit_bytes(ctx: Context<EmitBytes>, value: [u8; 32]) -> Result<()> {
-        msg!("Emitting bytes: {:?}", value);
-        Ok(())
-    }
-
     pub fn encrypt(ctx: Context<FHEOperation>, value: [u8; 32]) -> Result<()> {
         msg!("Encrypting value: {:?}", value);
         
@@ -124,8 +119,8 @@ pub mod blockchain {
     }
 }
 
-#[derive(Accounts)]
-pub struct Initialize {}
+// #[derive(Accounts)]
+// pub struct Initialize {} // No Lifetime needed
 
 #[account]
 pub struct DepositInfo {
@@ -182,9 +177,6 @@ pub struct Transfer<'info> {
     
     pub system_program: Program<'info, System>,
 }
-
-#[derive(Accounts)]
-pub struct EmitBytes {}
 
 #[derive(Accounts)]
 pub struct ViewBalance<'info> {
