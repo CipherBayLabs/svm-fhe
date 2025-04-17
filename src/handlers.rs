@@ -159,3 +159,42 @@ Json(payload): Json<Withdraw>
     let decrypted: u64 = new_balance.decrypt(&client_key);
     Ok(Json(ViewResponse { result: decrypted }))
 }
+
+#[derive(Debug, serde::Deserialize)]
+pub struct Fhe8AddRequest {
+    pub lhs_key: [u8; 32],
+    pub rhs_key: [u8; 32],
+    pub result_key: [u8; 32],
+}
+
+pub async fn handle_fhe8_add(
+    State(state): State<AppState>, 
+    Json(payload): Json<Fhe8AddRequest>
+) -> Result<StatusCode, StatusCode> {
+    let client_key = state.get_client_key();
+    let server_key = state.get_server_key();
+
+    set_server_key((*server_key).clone());
+
+    let lhs = operations::get_prepared_ciphertext(payload.lhs_key).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let rhs = operations::get_prepared_ciphertext(payload.rhs_key).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    // Downcast to FheUint8 if needed, or assume FheUint8
+    let result = &lhs + &rhs;
+    let decrypted: u64 = result.decrypt(&client_key);
+    println!("Decrypted value: {}", decrypted);  // Log decrypted value
+    
+    let compressed = CompressedCiphertextListBuilder::new()
+        .push(result)
+        .build()
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    let serialized_data = bincode::serialize(&compressed)
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    insert_ciphertext(payload.result_key, serialized_data)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+
+    println!("Successfully prepared ciphertext");  // Confirm success
+
+    Ok(StatusCode::OK)
+}

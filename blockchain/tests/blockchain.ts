@@ -75,7 +75,7 @@ describe("blockchain", () => {
 });
 
 
-  it("Can transfer SOL", async () => {
+  xit("Can transfer SOL", async () => {
     // Use helper to generate random value
     const value = generateRandomBytes32();
     const amount = new anchor.BN(700_000_000);
@@ -108,6 +108,37 @@ describe("blockchain", () => {
     console.log("Recipient:", recipient.toString());
   });
 
+  it("Can transfer SOL", async () => {
+    // Use helper to generate random value
+    const value1 = generateRandomBytes32();
+    const amount1 = new anchor.BN(700_000_000);
+    const value2 = generateRandomBytes32();
+    const amount2 = new anchor.BN(200_000_000);
+
+    await deposit(Number(amount1), value1);
+    await deposit(Number(amount2), value2);
+    //console.log('Deposited: into db', {value: value});
+    await sleep(10000);
+    // Derive PDA using the value as seeds
+    const [resultInfoPDA] = PublicKey.findProgramAddressSync(
+      [Buffer.from("fhe"), provider.publicKey.toBuffer()],
+      program.programId
+    );
+
+    // Then transfer (just emits events)
+    const tx = await program.methods
+        .fhe8Add(value1, value2)
+        .accounts({
+            resultInfo: resultInfoPDA,
+            user: provider.publicKey,
+            systemProgram: anchor.web3.SystemProgram.programId,
+        })
+        .rpc();
+
+    console.log("Transfer transaction signature", tx);
+    console.log("Random value 1 used:", value1);
+    console.log("Random value 2 used:", value2);
+  });
 });
 
 

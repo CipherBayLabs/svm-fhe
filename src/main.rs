@@ -17,7 +17,7 @@ mod types;
 mod operations;
 mod handlers;
 mod cache;
-use handlers::{handle_post, handle_transfer, handle_view, handle_withdraw};
+use handlers::{handle_fhe8_add, handle_post, handle_transfer, handle_view, handle_withdraw};
 use crate::operations::{init_db, update_ciphertext, get_ciphertext, insert_ciphertext};
 
 const DB_PATH: &str = "data/tfhe.db";
@@ -94,6 +94,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/transfer", post(handle_transfer))
         .route("/decrypt", post(handle_view))
         .route("/withdraw", post(handle_withdraw))
+        .route("/fhe8add", post(handle_fhe8_add))
         .with_state(state);
 
     println!("Server starting on http://localhost:3000");
