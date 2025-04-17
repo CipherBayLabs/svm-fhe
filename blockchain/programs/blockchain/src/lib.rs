@@ -1,6 +1,4 @@
 use anchor_lang::prelude::*;
-use anchor_lang::solana_program::hash::Hash;
-//use anchor_lang::solana_program::hash;
 
 declare_id!("GEFoAn6CNJiG9dq8xgm24fjzjip7n5GcH5AyqVC6QzdD");
 

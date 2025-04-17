@@ -28,7 +28,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         let server_key = tfhe::ServerKey::new(&client_key);
         save_client_key(&client_key)?;
         save_server_key(&server_key)?;
-
+        println!("Keys generated successfully.");
         Ok(())
     }
 }

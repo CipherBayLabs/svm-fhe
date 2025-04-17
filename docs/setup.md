@@ -27,14 +27,31 @@ rustc >= 1.70.0
 
 ## Setup
 
-Step 1: Clone the repo: `git clone https://github.com/kkoshiya/svm-fhe.git`
+Step 1: Clone the repo: 
+   - `git clone https://github.com/kkoshiya/svm-fhe.git`
+   - `cd svm-fhe`
 
-Step 2: `cd svm-fhe`
-
-Step 3: We now need to generate the encryption keys. This is done by running the following command: `cargo run --bin generate_keys` or `./ generate.sh`
+Step 2: We now need to generate the encryption keys. This is done by running the following command: `cargo run --bin generate_keys` or `sh generate.sh`
 
     This Should Generate a "keys" folder in the root of the project with the following files:
     - `client_key.bin`
     - `server_key.bin`
 
-Step 4:  
+Step 3: Open a new terminal end enter the blockchain directory: `cd blockchain`
+
+   Enter the Following Commands:
+   - `anchor build`
+   - `anchor sync`
+   - `anchor build`
+
+Step 4: Open a new terminal end enter the frontend directory: `cd listner`
+
+   Enter the Following Commands:
+   - `npm install`
+
+   Then update the programId to the same one in the blockchain Program.
+
+Step 5: 
+
+
+
