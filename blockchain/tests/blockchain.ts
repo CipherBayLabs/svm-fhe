@@ -111,12 +111,12 @@ describe("blockchain", () => {
   it("Can fhe 8 add", async () => {
     // Use helper to generate random value
     const value1 = generateRandomBytes32();
-    const amount1 = new anchor.BN(700_000_000);
+    const number1 = 7;
     const value2 = generateRandomBytes32();
-    const amount2 = new anchor.BN(200_000_000);
+    const number2 = 2;
 
-    await deposit(Number(amount1), value1);
-    await deposit(Number(amount2), value2);
+    await encrypt8(number1, value1);
+    await encrypt8(number2, value2);
     //console.log('Deposited: into db', {value: value});
     await sleep(10000);
     // Derive PDA using the value as seeds
@@ -204,13 +204,15 @@ const encrypt8 = async (value: number, key: string) => {
     value: Number(value),
     key: key  
   };
-  const response = await fetch('http://localhost:3000/post', {
+
+  const response = await fetch('http://localhost:3000/encrypt8', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
     },
-    body: JSON.stringify({ value }),
+    body: JSON.stringify(requestBody),
   });
-  return await response.json();
+
+  console.log('Rust Server Response:', await response.text());
 };
 

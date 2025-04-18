@@ -71,10 +71,10 @@ pub mod blockchain {
         Ok(())
     }
 
-    pub fn encrypt8(ctx: Context<Encrypt8>, key: [u8; 32]) -> Result<()> {
+    // pub fn encrypt8(ctx: Context<Encrypt8>, key: [u8; 32]) -> Result<()> {
 
-        Ok(())
-    }
+    //     Ok(())
+    // }
 
     pub fn transfer(ctx: Context<Transfer>, amount: [u8; 32], recipient: Pubkey) -> Result<()> {
         // Emit both sender's and recipient's ciphertext values
