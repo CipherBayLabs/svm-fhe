@@ -108,7 +108,7 @@ describe("blockchain", () => {
     console.log("Recipient:", recipient.toString());
   });
 
-  it("Can transfer SOL", async () => {
+  it("Can fhe 8 add", async () => {
     // Use helper to generate random value
     const value1 = generateRandomBytes32();
     const amount1 = new anchor.BN(700_000_000);
