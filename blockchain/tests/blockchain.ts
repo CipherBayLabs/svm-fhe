@@ -198,3 +198,19 @@ const deposit = async (lamports: number, key: string) => {
 }
 
 const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+
+const encrypt8 = async (value: number, key: string) => {
+  const requestBody = {
+    value: Number(value),
+    key: key  
+  };
+  const response = await fetch('http://localhost:3000/post', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ value }),
+  });
+  return await response.json();
+};
+

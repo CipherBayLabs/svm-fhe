@@ -71,6 +71,11 @@ pub mod blockchain {
         Ok(())
     }
 
+    pub fn encrypt8(ctx: Context<Encrypt8>, key: [u8; 32]) -> Result<()> {
+
+        Ok(())
+    }
+
     pub fn transfer(ctx: Context<Transfer>, amount: [u8; 32], recipient: Pubkey) -> Result<()> {
         // Emit both sender's and recipient's ciphertext values
         msg!("Sender's deposit value: {:?}", ctx.accounts.sender_deposit.value);
@@ -117,12 +122,9 @@ pub mod blockchain {
     }
 }
 
-// #[derive(Accounts)]
-// pub struct Initialize {} // No Lifetime needed
-
 #[account]
 pub struct DepositInfo {
-    owner: Pubkey,    // 32 bytes
+    owner: Pubkey,   
     value: [u8; 32],  
 }
 
