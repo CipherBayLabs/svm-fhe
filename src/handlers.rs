@@ -171,6 +171,8 @@ pub async fn handle_fhe8_add(
     State(state): State<AppState>, 
     Json(payload): Json<Fhe8AddRequest>
 ) -> Result<StatusCode, StatusCode> {
+    println!("=== FHE 8 ADD REQUEST RECEIVED ===");
+
     let client_key = state.get_client_key();
     let server_key = state.get_server_key();
 
