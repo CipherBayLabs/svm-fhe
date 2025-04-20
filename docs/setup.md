@@ -1,5 +1,7 @@
 # Running a Local FHE Coprocessor
 
+This is a guide to running you own local FHE coprocessor. You can either use this local for testing or you can deploy this to any SVM netwrok in order to ad FHE directly to your programs with a managed Client and Server Key. If you are interested in distributing the decryption key via MPC please check out https://github.com/zama-ai/threshold-fhe
+
 ## Prerequisites
 
 Required versions:
@@ -41,7 +43,7 @@ Step 3: Open a new terminal end enter the blockchain directory: `cd blockchain`
 
    Enter the Following Commands:
    - `anchor build`
-   - `anchor sync`
+   - `anchor keys sync`
    - `anchor build`
 
 Step 4: Open a new terminal end enter the frontend directory: `cd listner`
@@ -51,7 +53,14 @@ Step 4: Open a new terminal end enter the frontend directory: `cd listner`
 
    Then update the programId to the same one in the blockchain Program.
 
-Step 5: 
-   
+Step 5: After this intial setup we can start running each component in their own terminal.
+
+   Run each in separate terminals:
+
+   1. `cargo run`                      # Root directory: FHE Server
+   2. `solana-test-validator --reset`  # Any directory: Validator
+   3. `ts-node relayer.ts`            # In listener: Relayer
+   4. `npm run test:primary`          # In blockchain: Tests
+
 
 
