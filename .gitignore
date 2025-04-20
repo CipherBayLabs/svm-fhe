@@ -5,3 +5,10 @@ Cargo.lock
 /test-ledger
 listener/node_modules/
 listener/dist/
+
+/target/
+**/target/
+
+*.rs.bk
+*.pdb
+.DS_Store
