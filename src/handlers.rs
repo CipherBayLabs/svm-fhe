@@ -87,7 +87,9 @@ pub async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<
     let serialized_sender = bincode::serialize(&compressed_sender)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
     
-    update_ciphertext(payload.sender_key, serialized_sender.clone()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    update_ciphertext(payload.sender_key, serialized_sender.clone()).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    println!("Successfully updated sender key: {:?}", payload.sender_key);
 
     let compressed_recipient = CompressedCiphertextListBuilder::new()
         .push(new_recipient_value.clone())
@@ -97,7 +99,9 @@ pub async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<
     let serialized_recipient = bincode::serialize(&compressed_recipient)
         .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
 
-    update_ciphertext(payload.recipient_key, serialized_recipient.clone()).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    update_ciphertext(payload.recipient_key, serialized_recipient.clone()).await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    println!("Successfully updated recipient key: {:?}", payload.recipient_key);
     Ok(StatusCode::OK)
 }
 

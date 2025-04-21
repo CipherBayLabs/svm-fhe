@@ -83,7 +83,7 @@ describe("blockchain", () => {
 
     await deposit(Number(amount), value);
     //console.log('Deposited: into db', {value: value});
-    //await sleep(10000);
+    await sleep(10000);
     // Derive PDA using the value as seeds
     const [depositInfoPDA] = PublicKey.findProgramAddressSync(
       [provider.publicKey.toBuffer()],

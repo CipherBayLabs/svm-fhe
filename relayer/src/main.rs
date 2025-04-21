@@ -127,12 +127,11 @@ impl ProgramListenerTransfer for SolanaConnection {
                             if detail_log.contains(data.pattern) {
                                 data.value = parse_array_from_log(detail_log);
                                 if let Some(arr) = data.value {
-                                    println!("{}: {:?}", data.description, arr);
+                                    //println!("{}: {:?}", data.description, arr);
                                 }
                             }
                         }
                         
-                        // Extract the lamport amount 
                         if detail_log.contains("deposited") && detail_log.contains("lamports") {
                             let parts: Vec<&str> = detail_log.split_whitespace().collect();
                             // Format: "... deposited <AMOUNT> lamports"
@@ -170,7 +169,7 @@ async fn main() -> anyhow::Result<()> {
         "ws://localhost:8900",
         "GEFoAn6CNJiG9dq8xgm24fjzjip7n5GcH5AyqVC6QzdD"
     )?;
-
+    deposit(0, [0; 32]).await?;
     println!("Starting Solana relayer...");
     connection.listen().await?;
     Ok(())
