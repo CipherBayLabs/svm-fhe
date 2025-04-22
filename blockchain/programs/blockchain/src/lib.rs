@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("GEFoAn6CNJiG9dq8xgm24fjzjip7n5GcH5AyqVC6QzdD");
+declare_id!("5o9mxoRiUCtdd2JLvJGNoT5256mYBxEgG842b4M8pZDv");
 
 // Helper function for generating ciphertexts
 fn generate_ciphertext(clock: &Clock) -> [u8; 32] {
