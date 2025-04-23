@@ -51,7 +51,6 @@ pub mod blockchain {
         );
         anchor_lang::system_program::transfer(cpi_context, amount)?;
 
-        // Get slot and recent blockhash for entropy
         let clock = Clock::get()?;
         let value = generate_ciphertext(&clock);
         

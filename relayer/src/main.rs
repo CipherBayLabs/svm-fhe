@@ -120,7 +120,6 @@ impl ProgramListenerTransfer for SolanaConnection {
                     
                     let mut lamport_value: Option<u64> = None;
                     
-                    // Process all logs against patterns
                     for detail_log in &response.value.logs {
                         // Extract the ciphertext
                         for data in &mut deposit_data {

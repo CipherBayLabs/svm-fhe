@@ -69,7 +69,6 @@ pub async fn handle_transfer(State(state): State<AppState>, Json(payload): Json<
         println!("Error fetching values: {:?}", e);
         StatusCode::INTERNAL_SERVER_ERROR
     })?;
-
     println!("Successfully fetched all values");
 
     println!("about to start operations");
