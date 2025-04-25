@@ -5,7 +5,7 @@ Cargo.lock
 /test-ledger
 listener/node_modules/
 listener/dist/
-listener
+listner
 
 /target/
 **/target/
@@ -15,3 +15,5 @@ listener
 .DS_Store
 
 .cursorrules
+/cursor/
+/listner/ # Note the typo listner matches your directory
