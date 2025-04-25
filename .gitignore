@@ -5,6 +5,7 @@ Cargo.lock
 /test-ledger
 listener/node_modules/
 listener/dist/
+listener
 
 /target/
 **/target/
@@ -12,3 +13,5 @@ listener/dist/
 *.rs.bk
 *.pdb
 .DS_Store
+
+.cursorrules
