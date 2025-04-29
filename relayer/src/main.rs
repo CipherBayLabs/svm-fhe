@@ -105,7 +105,7 @@ impl ProgramListenerTransfer for SolanaConnection {
                     }
                 }
 
-                if log.contains("Instruction: Deposit") {
+                if log.contains("Instruction: Deposit string only") {
                     println!("Deposit event detected!");
                     
                     struct DepositData {

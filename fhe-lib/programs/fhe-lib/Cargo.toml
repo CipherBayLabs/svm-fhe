@@ -1,8 +1,10 @@
 [package]
 name = "fhe-lib"
 version = "0.1.0"
-description = "Created with Anchor"
 edition = "2021"
+authors = ["https://github.com/kkoshiya"]
+description = "A library for FHE operations on Solana"
+
 
 [lib]
 crate-type = ["cdylib", "lib"]
