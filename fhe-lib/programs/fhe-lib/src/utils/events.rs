@@ -6,3 +6,10 @@ pub struct Add8 {
     pub rhs: [u8; 32],
     pub sum: [u8; 32],
 }
+
+#[event]
+pub struct Sub8 {
+    pub lhs: [u8; 32],
+    pub rhs: [u8; 32],
+    pub sum: [u8; 32],
+}
