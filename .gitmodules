@@ -1,0 +1,3 @@
+[submodule "fhe_svm"]
+	path = fhe_svm
+	url = https://github.com/kkoshiya/fhe_svm.git
