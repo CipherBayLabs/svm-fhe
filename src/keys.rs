@@ -26,6 +26,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         .enable_compression(COMP_PARAM_MESSAGE_2_CARRY_2).build();
         let client_key = tfhe::ClientKey::generate(config);
         let server_key = tfhe::ServerKey::new(&client_key);
+        // add public key
         save_client_key(&client_key)?;
         save_server_key(&server_key)?;
         println!("Keys generated successfully.");
