@@ -20,6 +20,8 @@ pub mod app {
             cpi_accounts,
         );
         let ciphertext = fhe_lib::cpi::as_fhe8(cpi_program, a)?;
+
+        
         Ok(())
     }
 }

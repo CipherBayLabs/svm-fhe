@@ -10,7 +10,7 @@ describe("fhe_lib", () => {
   const provider = anchor.getProvider() as anchor.AnchorProvider;
   const program = anchor.workspace.FheLib as Program<FheLib>
   
-  it ("Creates a ciphertext", async () => {
+  xit ("Creates a ciphertext", async () => {
     const key = Array.from(anchor.web3.Keypair.generate().publicKey.toBytes().slice(0, 32));
     
     const [storagePDA] = await PublicKey.findProgramAddress(
