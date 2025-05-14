@@ -31,7 +31,6 @@ pub struct FheOp<'info> {
     #[account(mut)]
     pub signer: Signer<'info>,
     pub system_program: Program<'info, System>,
-    
     #[account(
         init,
         payer = signer,
