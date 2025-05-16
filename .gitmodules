@@ -1,3 +1,6 @@
 [submodule "fhe_svm"]
 	path = fhe_svm
 	url = https://github.com/kkoshiya/fhe_svm.git
+[submodule "encrypted_orderbook"]
+	path = encrypted_orderbook
+	url = https://github.com/kkoshiya/encrypted_orderbook.git
